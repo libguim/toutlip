@@ -6,17 +6,19 @@ import lombok.Setter;
 
 @Entity
 @Getter @Setter
-@Table(name = "products")
-public class Product {
+@Table(name = "community_posts")
+public class CommunityPost extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "brand_id")
-    private Brand brand;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "log_id")
+    private LipLog lipLog;
 
-    @Column(nullable = false)
-    private String name;
-    private String category;
+    @Column(columnDefinition = "int default 0")
+    private Integer viewCount;
+
+    @Column(columnDefinition = "int default 0")
+    private Integer likeCount;
 }

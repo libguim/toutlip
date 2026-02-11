@@ -1,4 +1,19 @@
 package com.example.toutlip.domain;
 
-public class Brand {
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Getter
+@Setter
+@Table(name = "brands")
+public class Brand extends BaseTimeEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @Column(nullable = false)
+    private String name;
+    private String logoUrl;
 }

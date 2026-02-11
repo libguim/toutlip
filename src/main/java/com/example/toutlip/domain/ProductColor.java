@@ -6,17 +6,19 @@ import lombok.Setter;
 
 @Entity
 @Getter @Setter
-@Table(name = "products")
-public class Product {
+@Table(name = "product_colors")
+public class ProductColor extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "brand_id")
-    private Brand brand;
+    @JoinColumn(name = "product_id")
+    private Product product;
+
+    private String colorName;
 
     @Column(nullable = false)
-    private String name;
-    private String category;
+    private String hexCode;
+    private String texture;
 }

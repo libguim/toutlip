@@ -1,4 +1,22 @@
 package com.example.toutlip.domain;
 
-public class Product {
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Getter @Setter
+@Table(name = "products")
+public class Product extends BaseTimeEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id")
+    private Brand brand;
+
+    @Column(nullable = false)
+    private String name;
+    private String category;
 }
