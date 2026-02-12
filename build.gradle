@@ -31,7 +31,6 @@ repositories {
 }
 
 dependencies {
-
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -77,13 +76,59 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-sourceSets {
+// --- 리액트 연동을 위한 추가 설정 시작 ---
 
+def frontendDir = "$projectDir/frontend"
+
+sourceSets {
     main {
         java {
             srcDirs = ["$projectDir/src/main/java", "$projectDir/build/generated"]
         }
+        // 빌드 시 리액트 정적 파일 경로 명시
+        resources {
+            srcDirs = ["$projectDir/src/main/resources"]
+        }
     }
 }
+
+// 1. 리액트 종속성 설치 (npm install)
+task installReact(type: Exec) {
+    workingDir "$frontendDir"
+    inputs.dir "$frontendDir"
+    group = "application"
+    if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+        commandLine "npm.cmd", "install"
+    } else {
+        commandLine "npm", "install"
+    }
+}
+
+// 2. 리액트 빌드 (npm run build)
+task buildReact(type: Exec) {
+    dependsOn "installReact"
+    workingDir "$frontendDir"
+    inputs.dir "$frontendDir"
+    group = "application"
+    if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+        commandLine "npm.cmd", "run-script", "build"
+    } else {
+        commandLine "npm", "run-script", "build"
+    }
+}
+
+// 3. 리액트 빌드 결과물을 Spring Boot static 폴더로 복사
+task copyReactBuildFiles(type: Copy) {
+    dependsOn "buildReact"
+    from "$frontendDir/build"
+    into "$projectDir/src/main/resources/static"
+}
+
+// 4. 프로젝트 리소스 처리 전 복사 작업 실행
+processResources {
+    dependsOn "copyReactBuildFiles"
+}
+
+// --- 리액트 연동을 위한 추가 설정 끝 ---
 
 compileJava.dependsOn('clean')
