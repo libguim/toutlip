@@ -2,7 +2,7 @@ package com.example.toutlip.service;
 
 import com.example.toutlip.domain.CommunityPost;
 import com.example.toutlip.domain.PersonalColorType;
-import com.example.toutlip.dto.CommunityPostResponseDTO;
+import com.example.toutlip.dto.CommunityDTO;
 import com.example.toutlip.repository.CommunityPostRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -14,41 +14,77 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional // 데이터 일관성을 위해 기본 트랜잭션 적용
 public class CommunityService {
     private final CommunityPostRepository communityPostRepository;
     private final ModelMapper modelMapper;
 
-    // 1. [Read] 인기순 피드 조회
+    /**
+     * 1. [Read] 인기순(조회수) 피드 조회
+     */
     @Transactional(readOnly = true)
-    public List<CommunityPostResponseDTO> findAllOrderByViewCount() {
-        // 레포지토리의 정렬된 조회 함수를 사용하여 지혜롭게 데이터를 가져옵니다.
+    public List<CommunityDTO.CommunityPostResponseDTO> findAllOrderByViewCount() {
+        // 정렬된 레포지토리 메서드를 호출하여 상위 노출 데이터를 가져옵니다.
         return communityPostRepository.findAllByOrderByViewCountDesc().stream()
-                .map(post -> modelMapper.map(post, CommunityPostResponseDTO.class))
+                .map(this::convertToResponseDTO) // 커스텀 매핑 메서드 사용
                 .collect(Collectors.toList());
     }
 
-    // 2. [Update] 조회수 증가
+    /**
+     * 2. [Read] 퍼스널 컬러 타입별 피드 필터링
+     */
+    @Transactional(readOnly = true)
+    public List<CommunityDTO.CommunityPostResponseDTO> findAllByPersonalColor(PersonalColorType type) {
+        // 특정 톤(예: SPRING_WARM)에 맞는 게시글만 필터링하여 조회합니다.
+        return communityPostRepository.findAllByLipLog_User_PersonalColorType(type).stream()
+                .map(this::convertToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 3. [Update] 게시글 상세 조회 시 조회수 증가
+     */
     public void incrementViewCount(Integer id) {
         CommunityPost post = communityPostRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
 
-        // 변경 감지(Dirty Checking)를 통해 조회수를 1 올립니다.
+        // Dirty Checking을 통해 조회수를 1 증가시킵니다.
         post.setViewCount(post.getViewCount() + 1);
     }
 
-    // 3. [Delete] 게시글 삭제
+    /**
+     * 4. [Update] 좋아요 클릭 (추가 기능)
+     */
+    public void incrementLikeCount(Integer id) {
+        CommunityPost post = communityPostRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+
+        post.setLikeCount(post.getLikeCount() + 1); //
+    }
+
+    /**
+     * 5. [Delete] 게시글 삭제
+     */
     public void delete(Integer id) {
         if (!communityPostRepository.existsById(id)) {
             throw new IllegalArgumentException("삭제할 게시글이 없습니다.");
         }
-        communityPostRepository.deleteById(id);
+        communityPostRepository.deleteById(id); //
     }
 
-    @Transactional(readOnly = true)
-    public List<CommunityPostResponseDTO> findAllByPersonalColor(PersonalColorType type) {
-        return communityPostRepository.findAllByLipLog_User_PersonalColorType(type).stream()
-                .map(post -> modelMapper.map(post, CommunityPostResponseDTO.class))
-                .collect(Collectors.toList());
+    /**
+     * --- 내부 헬퍼 메서드: 엔티티를 DTO로 변환 ---
+     * ModelMapper가 처리하지 못하는 Enum 설명 등을 보완합니다.
+     */
+    private CommunityDTO.CommunityPostResponseDTO convertToResponseDTO(CommunityPost post) {
+        CommunityDTO.CommunityPostResponseDTO dto = modelMapper.map(post, CommunityDTO.CommunityPostResponseDTO.class);
+
+        // 작성자의 퍼스널 컬러 한글 설명(예: "봄 웜톤")을 수동으로 매핑합니다.
+        if (post.getLipLog() != null && post.getLipLog().getUser() != null) {
+            String description = post.getLipLog().getUser().getPersonalColorType().getDescription();
+            dto.setAuthorPersonalColor(description);
+        }
+
+        return dto;
     }
 }

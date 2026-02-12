@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum PersonalColorType {
+public enum PersonalColorType { // enum은 엔티티가 될 수 없음
 
     // 1. 상수 정의 (DB 저장용 이름)
     SPRING_WARM("봄 웜톤"),

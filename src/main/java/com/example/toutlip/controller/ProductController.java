@@ -1,8 +1,6 @@
 package com.example.toutlip.controller;
 
-import com.example.toutlip.dto.BrandResponseDTO;
-import com.example.toutlip.dto.ProductColorResponseDTO;
-import com.example.toutlip.dto.ProductResponseDTO;
+import com.example.toutlip.dto.ProductDTO;
 import com.example.toutlip.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,27 +17,23 @@ import java.util.List;
 public class ProductController {
     private final ProductService productService;
 
-    // 모든 브랜드 목록 조회
     @GetMapping("/brands")
-    public ResponseEntity<List<BrandResponseDTO>> getAllBrands() {
-        return ResponseEntity.ok(productService.findAllBrands());
+    public List<ProductDTO.BrandResponseDTO> getAllBrands() {
+        return productService.findAllBrands(); // 모든 브랜드 목록
     }
 
-    // 특정 브랜드의 제품 목록 조회
     @GetMapping("/brand/{brandId}")
-    public ResponseEntity<List<ProductResponseDTO>> getProductsByBrand(@PathVariable Integer brandId) {
-        return ResponseEntity.ok(productService.findAllProductsByBrand(brandId));
+    public List<ProductDTO.ProductResponseDTO> getProductsByBrand(@PathVariable Integer brandId) {
+        return productService.findAllProductsByBrand(brandId); // 브랜드별 제품
     }
 
-    // 특정 제품의 컬러 정보 조회
     @GetMapping("/{productId}/colors")
-    public ResponseEntity<List<ProductColorResponseDTO>> getColorsByProduct(@PathVariable Integer productId) {
-        return ResponseEntity.ok(productService.findAllColorsByProduct(productId));
+    public List<ProductDTO.ProductColorResponseDTO> getColorsByProduct(@PathVariable Integer productId) {
+        return productService.findAllColorsByProduct(productId); // 제품별 컬러 상세
     }
 
-    @GetMapping("/try-on/colors")
-    public ResponseEntity<List<ProductColorResponseDTO>> getAvailableColors() {
-        // 가상 체험에 최적화된 컬러 리스트를 반환
-        return ResponseEntity.ok(productService.findAllAvailableColors());
+    @GetMapping("/colors/all")
+    public List<ProductDTO.ProductColorResponseDTO> getAllAvailableColors() {
+        return productService.findAllAvailableColors(); // 카메라 탭 전체 컬러
     }
 }

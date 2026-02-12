@@ -1,7 +1,6 @@
 package com.example.toutlip.controller;
 
-import com.example.toutlip.dto.LipLogRequestDTO;
-import com.example.toutlip.dto.LipLogResponseDTO;
+import com.example.toutlip.dto.LipLogDTO;
 import com.example.toutlip.service.LipLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,28 +15,26 @@ import java.util.List;
 public class LipLogController {
     private final LipLogService lipLogService;
 
-    // [Create] 새로운 립로그 생성
     @PostMapping
-    public ResponseEntity<LipLogResponseDTO> createLipLog(@RequestBody LipLogRequestDTO dto) {
+    public ResponseEntity<LipLogDTO.LipLogResponseDTO> create(@RequestBody LipLogDTO.LipLogRequestDTO dto) {
+        // 기록 생성 및 (isPublic이 true일 경우) 커뮤니티 게시글 자동 생성
         return ResponseEntity.status(HttpStatus.CREATED).body(lipLogService.createLipLog(dto));
     }
 
-    // [Read] 특정 사용자의 내 기록 목록 조회
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<LipLogResponseDTO>> getMyLogs(@PathVariable Integer userId) {
-        return ResponseEntity.ok(lipLogService.readMyLogs(userId));
+    public List<LipLogDTO.LipLogResponseDTO> getMyLogs(@PathVariable Integer userId) {
+        return lipLogService.readMyLogs(userId); // 내 기록 최신순 조회
     }
 
-    // [Update] 기록 수정 (메모, 공개 여부 등)
     @PutMapping("/{id}")
-    public ResponseEntity<LipLogResponseDTO> updateLipLog(@PathVariable Integer id, @RequestBody LipLogRequestDTO dto) {
+    public ResponseEntity<LipLogDTO.LipLogResponseDTO> update(@PathVariable Integer id, @RequestBody LipLogDTO.LipLogRequestDTO dto) {
+        // 기록 수정 및 커뮤니티 게시글 상태 동기화
         return ResponseEntity.ok(lipLogService.updateLipLog(id, dto));
     }
 
-    // [Delete] 기록 삭제
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteLipLog(@PathVariable Integer id) {
-        lipLogService.deleteLipLog(id);
+    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+        lipLogService.deleteLipLog(id); // 기록 및 관련 포스트 삭제
         return ResponseEntity.noContent().build();
     }
 }

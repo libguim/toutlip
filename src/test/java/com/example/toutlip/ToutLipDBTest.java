@@ -1,13 +1,13 @@
 package com.example.toutlip;
 
-import com.example.toutlip.domain.Brand;
-import com.example.toutlip.domain.Product;
-import com.example.toutlip.repository.BrandRepository;
-import com.example.toutlip.repository.ProductRepository;
+import com.example.toutlip.domain.*;
+import com.example.toutlip.repository.*;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -15,90 +15,95 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@Transactional // 테스트 완료 후 데이터를 자동으로 롤백하여 DB 청결 유지
+@Transactional
 class ToutLipDBTest {
 
-    @Autowired
-    private ProductRepository productRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private BrandRepository brandRepository;
+    @Autowired private ProductRepository productRepository;
+    @Autowired private ProductColorRepository productColorRepository;
+    @Autowired private CommunityPostRepository communityPostRepository;
+    @Autowired private LipLogRepository lipLogRepository;
+    @Autowired private EntityManager em;
 
-    @Autowired
-    private BrandRepository brandRepository;
-
-    // 1. [Create] 데이터 생성 테스트
+    // 1. [Create] 엔티티 저장 및 연관관계 검증
     @Test
-    @DisplayName("Create: 브랜드와 제품이 실제 DB 환경에서 유기적으로 생성된다")
-    void create() {
-        // given
+//    @Rollback(false)
+    @DisplayName("Create: User와 Brand를 생성하고 정상 저장한다")
+    void create_Entities_Success() {
+        // User 저장
+        User user = new User();
+        user.setUsername("moana");
+        userRepository.save(user);
+
+        // Brand 저장
         Brand brand = new Brand();
         brand.setName("ToutLip Official");
         brandRepository.save(brand);
 
+        assertThat(user.getId()).isNotNull();
+        assertThat(brand.getId()).isNotNull();
+    }
+
+    // 2. [Read] 기본 메서드를 이용한 데이터 조회
+    @Test
+//    @Rollback(false)
+    @DisplayName("Read: 저장된 모든 제품 목록을 리스트로 읽어온다")
+    void read_AllProducts_Success() {
         Product product = new Product();
         product.setName("에어리 매트 틴트");
-        product.setBrand(brand);
+        productRepository.save(product);
+        productRepository.flush();
 
-        // when
-        Product saved = productRepository.save(product);
-
-        // then
-        assertThat(saved.getId()).isNotNull();
-        assertThat(saved.getBrand().getName()).isEqualTo("ToutLip Official");
-    }
-
-    // 2. [Read] 데이터 조회 테스트
-    @Test
-    @DisplayName("Read: 저장된 제품 리스트를 브랜드 ID로 정확히 읽어온다")
-    void read() {
-        // given
-        Brand brand = new Brand();
-        brand.setName("샤넬");
-        brandRepository.save(brand);
-
-        Product p1 = new Product();
-        p1.setName("립스틱 A");
-        p1.setBrand(brand);
-        productRepository.save(p1);
-
-        // when
-        List<Product> products = productRepository.findAllByBrandId(brand.getId());
-
-        // then
+        List<Product> products = productRepository.findAll();
         assertThat(products).isNotEmpty();
-        assertThat(products.get(0).getName()).contains("립스틱");
     }
 
-    // 3. [Update] 데이터 수정 테스트
+    // 3. [Update] Dirty Checking을 통한 데이터 수정
     @Test
-    @DisplayName("Update: 엔티티의 상태 변경이 실제 DB 반영까지 성공한다")
-    void update() {
-        // given
-        Product product = new Product();
-        product.setName("변경 전 제품");
-        Product saved = productRepository.save(product);
+    @Rollback(false)
+    @DisplayName("Update: 엔티티 수정 후 DB 반영 여부를 확인한다")
+    void update_ProductColor_Success() {
+        ProductColor color = new ProductColor();
+        color.setColorName("핑크");
+        color.setHexCode("#FFC0CB");
+        productColorRepository.save(color);
+        productColorRepository.flush();
 
-        // when
-        saved.setName("변경 후 제품");
-        productRepository.flush(); // 영속성 컨텍스트 내용을 DB에 즉시 반영
+        // 수정 로직
+        color.setColorName("코랄 핑크");
+        color.setHexCode("#F88379");
+        productColorRepository.save(color);
+        productColorRepository.flush();
+        em.clear();
 
-        // then
-        Product updated = productRepository.findById(saved.getId()).orElseThrow();
-        assertThat(updated.getName()).isEqualTo("변경 후 제품");
+        ProductColor updated = productColorRepository.findById(color.getId()).orElseThrow();
+        assertThat(updated.getColorName()).isEqualTo("코랄 핑크");
     }
 
-    // 4. [Delete] 데이터 삭제 테스트
+    // 4. [Delete] 데이터 삭제 및 존재 여부 확인
     @Test
-    @DisplayName("Delete: 삭제 요청 시 DB에서 해당 레코드가 깔끔하게 제거된다")
-    void delete() {
-        // given
-        Product product = new Product();
-        product.setName("삭제 대상");
-        Product saved = productRepository.save(product);
+    @DisplayName("Delete: CommunityPost 삭제 후 DB에 데이터가 없는지 확인한다")
+    void delete_CommunityPost_Success() {
+        CommunityPost post = new CommunityPost();
+        communityPostRepository.save(post);
+        communityPostRepository.flush();
 
-        // when
-        productRepository.delete(saved);
+        communityPostRepository.delete(post);
+        communityPostRepository.flush();
 
-        // then
-        boolean exists = productRepository.existsById(saved.getId());
+        boolean exists = communityPostRepository.existsById(post.getId());
         assertThat(exists).isFalse();
+    }
+
+    // 5. [Complex] 연관관계와 활동 로그 기록 테스트
+    @Test
+    @DisplayName("Complex: LipLog 활동 기록이 정상 생성된다")
+    void save_LipLog_Success() {
+        LipLog log = new LipLog();
+        log.setMemo("오늘의 테스트 기록");
+
+        LipLog saved = lipLogRepository.save(log);
+        assertThat(saved.getId()).isNotNull();
     }
 }

@@ -1,15 +1,19 @@
 package com.example.toutlip.domain;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
+@Setter
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Table(name = "user")
 public class User extends BaseTimeEntity {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
     @Column(unique = true, nullable = false)
@@ -20,8 +24,4 @@ public class User extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     private PersonalColorType personalColorType;
-
-    public void encodePassword(PasswordEncoder passwordEncoder, String rawPassword) {
-        this.password = passwordEncoder.encode(rawPassword);
-    }
 }

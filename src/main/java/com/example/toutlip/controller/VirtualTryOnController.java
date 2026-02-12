@@ -20,9 +20,9 @@ public class VirtualTryOnController {
      * MediaPipe로 합성된 화면을 캡처한 이미지와 선택했던 컬러 정보를 함께 저장합니다.
      */
     @PostMapping("/save")
-    public ResponseEntity<LipLogResponseDTO> saveTryOnResult(@RequestBody LipLogRequestDTO dto) {
+    public ResponseEntity<LipLogDTO.LipLogResponseDTO> saveTryOnResult(@RequestBody LipLogDTO.LipLogRequestDTO dto) {
         // 서비스 로직을 통해 DB 저장 및 필요 시 커뮤니티 공유 로직 실행
-        LipLogResponseDTO savedLog = lipLogService.createLipLog(dto);
+        LipLogDTO.LipLogResponseDTO savedLog = lipLogService.createLipLog(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedLog);
     }
 }

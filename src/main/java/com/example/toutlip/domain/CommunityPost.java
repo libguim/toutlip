@@ -5,8 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Getter @Setter
-@Table(name = "community_posts")
+@Getter
+@Setter
+@Table(name = "community_post")
 public class CommunityPost extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
