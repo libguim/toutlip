@@ -2,7 +2,6 @@ package com.example.toutlip.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
 @Setter

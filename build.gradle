@@ -36,10 +36,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    // Security
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
-
     // MariaDB
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 
@@ -58,7 +54,6 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // ModelMapper
@@ -96,6 +91,7 @@ sourceSets {
 task installReact(type: Exec) {
     workingDir "$frontendDir"
     inputs.dir "$frontendDir"
+    outputs.dir "$frontendDir/node_modules"
     group = "application"
     if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
         commandLine "npm.cmd", "install"

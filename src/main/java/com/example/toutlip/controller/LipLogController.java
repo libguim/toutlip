@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/liplogs")
@@ -26,9 +27,15 @@ public class LipLogController {
         return lipLogService.readMyLogs(userId); // 내 기록 최신순 조회
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<LipLogDTO.LipLogResponseDTO> update(@PathVariable Integer id, @RequestBody LipLogDTO.LipLogRequestDTO dto) {
-        // 기록 수정 및 커뮤니티 게시글 상태 동기화
+    @PatchMapping("/{id}/public")
+    public ResponseEntity<LipLogDTO.LipLogResponseDTO> togglePublic(
+            @PathVariable Integer id,
+            @RequestBody Map<String, Boolean> request) {
+
+        // 기존 update 로직을 활용하되, isPublic 필드만 부분 업데이트
+        LipLogDTO.LipLogRequestDTO dto = new LipLogDTO.LipLogRequestDTO();
+        dto.setIsPublic(request.get("is_public"));
+
         return ResponseEntity.ok(lipLogService.updateLipLog(id, dto));
     }
 
