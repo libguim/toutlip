@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
-import styled, { ThemeProvider } from 'styled-components'; // styled와 ThemeProvider 추가
+import styled, { ThemeProvider, createGlobalStyle } from 'styled-components'; // styled와 ThemeProvider 추가
 import { theme } from './styles/theme'; // 방금 만드신 테마 파일
 
 // 페이지 컴포넌트 임포트 (경로에 맞춰 수정 필요)
@@ -12,7 +12,8 @@ function App() {
     return (
         <ThemeProvider theme={theme}>
             <AppWrapper>
-                <MobileContainer> {/* 이 컨테이너가 중심을 잡아줍니다 */}
+                <GlobalStyle /> {/* 전역 스타일 추가 권장 */}
+                <MobileContainer>
                     <Router>
                         <ContentArea>
                             <Routes>
@@ -21,7 +22,41 @@ function App() {
                                 <Route path="/profile" element={<MyProfile />} />
                             </Routes>
                         </ContentArea>
-                        <NavBar />
+
+                        {/* 피그마 스타일의 다크 네비게이션 */}
+                        <NavBar>
+                            <NavItem to="/liplog">
+                                <IconWrapper>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                        <path d="M12 8V12L15 15" strokeLinecap="round" />
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="M3.5 12C3.5 12 5 7 12 7" strokeLinecap="round" />
+                                    </svg>
+                                </IconWrapper>
+                                <span>Lip Log</span>
+                            </NavItem>
+
+                            <NavItem to="/" end>
+                                <IconWrapper className="camera-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M23 19C23 19.5523 22.5523 20 22 20H2C1.44772 20 1 19.5523 1 19V8C1 7.44772 1.44772 7 2 7H7L9 4H15L17 7H22C22.5523 7 23 7.44772 23 8V19Z" />
+                                        <circle cx="12" cy="13" r="4" />
+                                    </svg>
+                                </IconWrapper>
+                                <span>Try-On</span>
+                                <div className="active-dot" />
+                            </NavItem>
+
+                            <NavItem to="/profile">
+                                <IconWrapper>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                        <path d="M20 21V19C20 16.7909 18.2091 15 16 15H8C5.79086 15 4 16.7909 4 19V21" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                </IconWrapper>
+                                <span>Profile</span>
+                            </NavItem>
+                        </NavBar>
                     </Router>
                 </MobileContainer>
             </AppWrapper>
@@ -30,6 +65,27 @@ function App() {
 }
 
 // 스타일 정의
+
+const GlobalStyle = createGlobalStyle`
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    /* 테마의 darkBg 색상(#121212)으로 바닥 전체를 채웁니다. */
+    background-color: #121212; 
+    overflow: hidden; /* 전체 페이지 스크롤 방지 */
+  }
+
+  #root {
+    width: 100%;
+    height: 100%;
+  }
+`;
 
 // 1. 전체 배경 (PC의 광활한 여백을 어둡게 채워줍니다)
 const AppWrapper = styled.div`
@@ -60,35 +116,77 @@ const MobileContainer = styled.div`
 `;
 
 const ContentArea = styled.main`
-    height: calc(100% - 70px); // 네비게이션 바 높이 제외한 전체
+    /* 화면 전체 높이에서 NavBar 높이(80px)를 뺍니다 */
+    height: calc(100vh - 80px);
+    width: 100%;
+    position: relative;
     overflow-y: auto;
-    &::-webkit-scrollbar { display: none; } // 스크롤바 숨김
+    background-color: ${props => props.theme.colors.darkBg};
+    &::-webkit-scrollbar { display: none; }
 `;
 
 const NavBar = styled.nav`
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  height: 70px;
-  background: white;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  border-top: 1px solid #eee;
-  box-shadow: ${props => props.theme.shadows.soft}; // 테마의 그림자 적용
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 80px;
+    background: ${props => props.theme.colors.panelBg};
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid ${props => props.theme.colors.borderGold};
+    z-index: 1000;
+`;
+
+const IconWrapper = styled.div`
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666; /* 비활성 색상 */
+    transition: all 0.3s ease;
+
+    svg { width: 100%; height: 100%; }
 `;
 
 const NavItem = styled(NavLink)`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-decoration: none;
-    color: #666; // 비활성 상태
-    font-weight: 500;
-    transition: all 0.3s ease;
+    gap: 4px;
+    position: relative;
+    padding: 10px 0;
+
+    span {
+        font-size: 0.65rem;
+        color: #666;
+        font-weight: 500;
+        transition: color 0.3s ease;
+    }
+
+    .active-dot {
+        width: 3px;
+        height: 3px;
+        background-color: ${props => props.theme.colors.champagneGold};
+        border-radius: 50%;
+        margin-top: 4px;
+        opacity: 0;
+    }
 
     &.active {
-        color: ${props => props.theme.colors.champagneGold}; // 샴페인 골드 적용
-        text-shadow: ${props => props.theme.shadows.glow};
-        border-bottom: 2px solid ${props => props.theme.colors.roseGold}; // 하단은 로즈골드 라인
-        padding-bottom: 5px;
+        ${IconWrapper} {
+            color: ${props => props.theme.colors.champagneGold};
+            transform: translateY(-2px);
+            filter: drop-shadow(0 0 5px ${props => props.theme.colors.goldGlow});
+        }
+        span {
+            color: ${props => props.theme.colors.champagneGold};
+        }
+        .active-dot {
+            opacity: 1;
+        }
     }
 `;
 

@@ -1,20 +1,23 @@
 export const theme = {
     colors: {
-        // 메인 포인트: 럭셔리한 골드 라인
-        champagneGold: "#F7E7CE", // 부드럽고 밝은 샴페인 골드
-        roseGold: "#B76E79",      // 깊이감 있고 우아한 리얼 로즈골드 (연보라 느낌 제거)
+        // 배경: Jet Black & Charcoal
+        darkBg: "#0a0a0a",        // bg-[#0a0a0a] (더 깊어진 메인 배경)
+        panelBg: "#121212",       // surface: bg-[#121212] (카드 및 패널)
 
-        // 배경: 프리미엄 다크 톤
-        darkBg: "#121212",        // 메인 배경 (깊은 블랙)
-        panelBg: "#1E1E1E",       // 하단 패널 및 카드 배경
+        // 텍스트: 화이트 & 그레이
+        softWhite: "#f5f5f5",     // textPrimary: text-[#f5f5f5]
+        textSecondary: "#a1a1aa", // textSecondary: text-[#a1a1aa]
 
-        // 텍스트 및 효과
-        softWhite: "#F5F5F5",     // 가독성 높은 화이트
-        goldGlow: "rgba(247, 231, 206, 0.3)", // 은은한 발광 효과용
-        borderGold: "rgba(183, 110, 121, 0.4)" // 로즈골드빛 테두리
+        // 포인트: 누드 베이지 골드 (Accent)
+        accent: "#E6C9A8",        // accent: text-[#E6C9A8]
+        accentBg: "#E6C9A8",      // accentBg: bg-[#E6C9A8]
+
+        // 경계선 및 효과
+        borderGold: "#2a2a2a",    // border: border-[#2a2a2a]
+        goldGlow: "rgba(230, 201, 168, 0.2)" // 변경된 accent 컬러에 맞춘 은은한 광택
     },
     shadows: {
-        luxury: "0 10px 30px rgba(0, 0, 0, 0.5)",
-        glow: "0 0 15px rgba(247, 231, 206, 0.2)" // 샴페인 골드빛 아우라
+        luxury: "0 10px 40px rgba(0, 0, 0, 0.7)",
+        glow: "0 0 20px rgba(230, 201, 168, 0.15)" // 새로운 액센트 컬러 기반 아우라
     }
 };
