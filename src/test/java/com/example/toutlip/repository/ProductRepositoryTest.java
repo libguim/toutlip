@@ -24,7 +24,8 @@ class ProductRepositoryTest {
     @DisplayName("제품 CRUD: 브랜드 연관 제품의 생성부터 삭제까지 확인")
     void productFullCrud() {
         // 1. Create (Brand와 함께)
-        Brand brand = new Brand();
+//        Brand brand = new Brand();
+        Brand brand = Brand.builder().name("테스트브랜드").build();
         brand.setName("ToutLip_Brand");
         brandRepository.save(brand);
 

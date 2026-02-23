@@ -6,7 +6,7 @@ import { theme } from './styles/theme'; // 방금 만드신 테마 파일
 // 페이지 컴포넌트 임포트 (경로에 맞춰 수정 필요)
 import TryOn from './pages/TryOn';
 import LipLog from './pages/LipLog';
-import MyProfile from './pages/MyProfile';
+import Profile from './pages/Profile';
 
 function App() {
     return (
@@ -19,7 +19,7 @@ function App() {
                             <Routes>
                                 <Route path="/" element={<TryOn />} />
                                 <Route path="/liplog" element={<LipLog />} />
-                                <Route path="/profile" element={<MyProfile />} />
+                                <Route path="/profile" element={<Profile />} />
                             </Routes>
                         </ContentArea>
 
@@ -44,7 +44,6 @@ function App() {
                                     </svg>
                                 </IconWrapper>
                                 <span>Try-On</span>
-                                <div className="active-dot" />
                             </NavItem>
 
                             <NavItem to="/profile">
@@ -155,37 +154,31 @@ const NavItem = styled(NavLink)`
     flex-direction: column;
     align-items: center;
     text-decoration: none;
-    gap: 4px;
+    gap: 6px;
     position: relative;
     padding: 10px 0;
+    transition: all 0.3s ease;
 
     span {
-        font-size: 0.65rem;
-        color: #666;
+        font-size: 0.7rem;
+        color: ${props => props.theme.colors.textSecondary};
         font-weight: 500;
-        transition: color 0.3s ease;
     }
 
-    .active-dot {
-        width: 3px;
-        height: 3px;
-        background-color: ${props => props.theme.colors.champagneGold};
-        border-radius: 50%;
-        margin-top: 4px;
-        opacity: 0;
-    }
-
+    /* 활성 상태 (Active) */
     &.active {
         ${IconWrapper} {
-            color: ${props => props.theme.colors.champagneGold};
+            /* 테마의 accent (#E6C9A8) 컬러 적용 */
+            color: ${props => props.theme.colors.accent};
+            /* 테마의 goldGlow (rgba(230, 201, 168, 0.2)) 광채 효과 */
+            filter: drop-shadow(0 0 8px ${props => props.theme.colors.goldGlow});
             transform: translateY(-2px);
-            filter: drop-shadow(0 0 5px ${props => props.theme.colors.goldGlow});
         }
+
         span {
-            color: ${props => props.theme.colors.champagneGold};
-        }
-        .active-dot {
-            opacity: 1;
+            /* 테마의 accent (#E6C9A8) 컬러 적용 */
+            color: ${props => props.theme.colors.accent};
+            font-weight: 600;
         }
     }
 `;

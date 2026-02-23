@@ -11,4 +11,6 @@ public interface LipLogRepository extends JpaRepository<LipLog, Integer> {
 
     // 커뮤니티에 공개된 로그들만 가져오기
     List<LipLog> findByIsPublicTrueOrderByCreatedAtDesc();
+
+    List<LipLog> findAllByIsPublicTrue();
 }

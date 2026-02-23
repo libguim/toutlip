@@ -25,6 +25,7 @@ public class LoginDTO {
     @AllArgsConstructor
     @Builder
     public static class LoginResponseDTO {
+        private Integer id;
         private String username;
         private String nickname;
         private PersonalColorType personalColorType;

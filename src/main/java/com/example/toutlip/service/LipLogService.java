@@ -4,17 +4,21 @@ import com.example.toutlip.domain.CommunityPost;
 import com.example.toutlip.domain.LipLog;
 import com.example.toutlip.domain.ProductColor;
 import com.example.toutlip.domain.User;
+import com.example.toutlip.dto.CommunityDTO;
 import com.example.toutlip.dto.LipLogDTO;
 import com.example.toutlip.repository.CommunityPostRepository;
 import com.example.toutlip.repository.LipLogRepository;
 import com.example.toutlip.repository.ProductColorRepository;
 import com.example.toutlip.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,68 +31,183 @@ public class LipLogService {
     private final UserRepository userRepository;
     private final ProductColorRepository colorRepository;
 
-    // [Create] 기록 생성 및 공유
+    // LipLogService.java 수정
+
+    @Transactional(readOnly = true)
+    public List<CommunityDTO.CommunityPostResponseDTO> readPublicLogs() {
+        // 📍 1. 정렬되지 않은 전체 데이터를 가져와서
+        return communityPostRepository.findAll().stream()
+                // 📍 2. ID(또는 생성시간) 기준 역순 정렬 추가 (최신 글이 위로!)
+                .sorted(Comparator.comparing(CommunityPost::getId).reversed())
+                .map(post -> {
+                    CommunityDTO.CommunityPostResponseDTO dto = new CommunityDTO.CommunityPostResponseDTO();
+
+                    dto.setPostId(post.getId());
+                    dto.setMemo(post.getMemo());
+                    dto.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : "");
+
+                    if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
+                        dto.setLipLogs(post.getLipLogs().stream()
+                                .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
+                                .collect(Collectors.toList()));
+
+                        dto.setPhotoUrl(post.getLipLogs().get(0).getPhotoUrl());
+                        dto.setNickname(post.getLipLogs().get(0).getUser().getNickname());
+                    }
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+//    @Transactional(readOnly = true)
+//    public List<CommunityDTO.CommunityPostResponseDTO> readPublicLogs() {
+//        return communityPostRepository.findAll().stream()
+//                .map(post -> {
+//                    CommunityDTO.CommunityPostResponseDTO dto = new CommunityDTO.CommunityPostResponseDTO();
+//
+//                    // 📍 1. ID 타입을 Integer로 맞춰 500 에러 방지 (provided Long vs required Integer 해결)
+//                    dto.setPostId(post.getId());
+//                    dto.setMemo(post.getMemo());
+//                    dto.setLikeCount(post.getLikeCount() != null ? post.getLikeCount() : 0);
+//
+//                    // 📍 2. 이미지 리스트를 DTO에 담아줘야 리액트 슬라이더가 작동합니다.
+//                    if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
+//                        dto.setLipLogs(post.getLipLogs().stream()
+//                                .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
+//                                .collect(Collectors.toList()));
+//
+//                        // 대표 이미지 및 닉네임 설정 (Unknown 방지)
+//                        dto.setPhotoUrl(post.getLipLogs().get(0).getPhotoUrl());
+//                        dto.setNickname(post.getLipLogs().get(0).getUser().getNickname());
+//                    }
+//                    return dto;
+//                })
+//                .collect(Collectors.toList());
+//    }
+    @Transactional
+    public void updateCommunityPost(Integer postId, CommunityDTO.CommunityPostRequestDTO dto) {
+        // 1. 기존 게시글 찾기
+        CommunityPost post = communityPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("게시글을 찾을 수 없습니다."));
+
+        // 2. 글(Memo) 수정
+        post.setMemo(dto.getMemo());
+
+        // 3. 이미지(LipLog) 관계 재설정
+        // 기존 연결된 로그들의 관계를 끊어줍니다.
+        post.getLipLogs().forEach(log -> {
+            log.setCommunityPost(null);
+            log.setIsPublic(false);
+        });
+        post.getLipLogs().clear();
+
+        // 새로운 로그들을 연결합니다.
+        List<LipLog> newLogs = lipLogRepository.findAllById(dto.getLogIds());
+        newLogs.forEach(log -> {
+            log.setCommunityPost(post);
+            log.setIsPublic(true);
+        });
+
+        communityPostRepository.save(post);
+    }
+
+    // 로그 수정 (image_a9207e 해결)
+    public LipLogDTO.LipLogResponseDTO updateLipLog(Integer id, LipLogDTO.LipLogRequestDTO dto) {
+        LipLog lipLog = lipLogRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("로그를 찾을 수 없습니다."));
+
+        if (dto.getIsPublic() != null) lipLog.setIsPublic(dto.getIsPublic());
+        if (dto.getMemo() != null) lipLog.setMemo(dto.getMemo());
+
+        return modelMapper.map(lipLog, LipLogDTO.LipLogResponseDTO.class);
+    }
+
+    // [Create] 기록 생성 (보관함 저장 전용)
     public LipLogDTO.LipLogResponseDTO createLipLog(LipLogDTO.LipLogRequestDTO dto) {
-        // 1. 사용자 및 컬러 정보 조회 (레포지토리의 기본 findById 사용)
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         ProductColor color = colorRepository.findById(dto.getColorId())
                 .orElseThrow(() -> new IllegalArgumentException("컬러 정보를 찾을 수 없습니다."));
 
-        // 2. 엔티티 매핑
-        LipLog entity = modelMapper.map(dto, LipLog.class);
-        entity.setUser(user);
-        entity.setProductColor(color);
+        LipLog entity = LipLog.builder()
+                .user(user)
+                .productColor(color)
+                .photoUrl(dto.getPhotoUrl())
+                .memo(dto.getMemo())
+                .isPublic(false) // 보관함 전용이므로 기본 false
+                .build();
 
         LipLog saved = lipLogRepository.save(entity);
-
-        // 3. 커뮤니티 공유 로직
-        if (Boolean.TRUE.equals(saved.getIsPublic())) {
-            publishToCommunity(saved);
-        }
-        return modelMapper.map(saved, LipLogDTO.LipLogResponseDTO.class);
+        return convertToResponseDTO(saved);
     }
 
-    // [Read] 내 기록 최신순 조회
+    // [Read] 내 보관함 최신순 조회 (기존 로직 유지)
     @Transactional(readOnly = true)
     public List<LipLogDTO.LipLogResponseDTO> readMyLogs(Integer userId) {
-        return lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
+        List<LipLog> logs = lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        return logs.stream()
+                .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    // [Update] 기록 수정 및 공유 상태 동기화
-    public LipLogDTO.LipLogResponseDTO updateLipLog(Integer id, LipLogDTO.LipLogRequestDTO dto) {
-        LipLog log = lipLogRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("기록을 찾을 수 없습니다."));
+    // [Create] 립로그 탭: 여러 장의 사진(최대 3장)을 선택하여 피드 공유
+    @Transactional
+    public void createMultiPhotoPost(List<Integer> logIds, String memo) {
+        List<LipLog> selectedLogs = lipLogRepository.findAllById(logIds);
 
-        log.setMemo(dto.getMemo());
-        syncCommunityPost(log, dto.getIsPublic()); // 공유 상태 변경에 따른 게시글 관리
-        log.setIsPublic(dto.getIsPublic());
+        // 1. post를 먼저 선언 및 빌드
+        CommunityPost post = CommunityPost.builder()
+                .memo(memo)
+                .build();
 
-        return modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
+        // 2. 루프 안에서 사용
+        selectedLogs.forEach(log -> {
+            log.setCommunityPost(post); // 📍 이제 에러가 나지 않습니다.
+            log.setIsPublic(true);
+        });
+
+        communityPostRepository.save(post);
     }
 
-    // [Delete] 기록 및 관련 포스트 삭제
+    // [Delete] 기록 삭제: 보관함에서 삭제 시 립로그 피드에서도 자동 삭제
     public void deleteLipLog(Integer id) {
         LipLog log = lipLogRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("기록을 찾을 수 없습니다."));
 
-        communityPostRepository.deleteByLipLog(log); // 변경된 함수명 반영
+        // 📍 [핀셋] 해당 로그를 포함하고 있는 커뮤니티 포스트를 찾아 먼저 삭제
+        communityPostRepository.findByLipLogsContaining(log).ifPresent(post -> {
+            communityPostRepository.delete(post);
+        });
+
         lipLogRepository.delete(log);
     }
 
     // --- Helper Methods ---
-    private void publishToCommunity(LipLog log) {
-        CommunityPost post = new CommunityPost();
-        post.setLipLog(log);
-        post.setViewCount(0); // 초기값 설정
-        post.setLikeCount(0); // 초기값 설정
-        communityPostRepository.save(post);
+
+    private LipLogDTO.LipLogResponseDTO convertToResponseDTO(LipLog log) {
+        // 기존의 꼼꼼한 매핑 로직 유지
+        LipLogDTO.LipLogResponseDTO dto = new LipLogDTO.LipLogResponseDTO();
+        dto.setLogId(log.getId());
+        dto.setPhotoUrl(log.getPhotoUrl());
+        dto.setMemo(log.getMemo());
+        dto.setIsPublic(log.getIsPublic());
+        dto.setCreatedAt(log.getCreatedAt());
+
+        if (log.getProductColor() != null) {
+            dto.setColorName(log.getProductColor().getColorName());
+            if (log.getProductColor().getProduct() != null) {
+                dto.setProductName(log.getProductColor().getProduct().getName());
+                dto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
+            }
+        }
+
+        if (log.getUser() != null) {
+            dto.setNickname(log.getUser().getNickname());
+        }
+        return dto;
     }
 
-    private void syncCommunityPost(LipLog log, Boolean nextStatus) {
-        if (!log.getIsPublic() && nextStatus) publishToCommunity(log);
-        else if (log.getIsPublic() && !nextStatus) communityPostRepository.deleteByLipLog(log);
+    @Transactional
+    public void deleteCommunityPost(Integer postId) { // Long 대신 Integer 사용
+        communityPostRepository.deleteById(postId);
     }
 }

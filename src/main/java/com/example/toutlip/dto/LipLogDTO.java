@@ -3,6 +3,7 @@ package com.example.toutlip.dto;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class LipLogDTO {
 
@@ -34,5 +35,23 @@ public class LipLogDTO {
         private String memo;
         private Boolean isPublic;
         private LocalDateTime createdAt; // BaseTimeEntity에서 제공하는 생성 시각
+        private String nickname;
     }
+
+    // LipLogDTO.java 내부에 추가
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class CommunityPostResponseDTO {
+        private Integer postId;
+        private String nickname;
+        private String userProfileImg;
+        private String memo;
+        private List<LipLogResponseDTO> lipLogs; // 📍 사진 여러 장이 담길 리스트
+        private Integer likeCount;
+        private LocalDateTime createdAt;
+    }
+
 }

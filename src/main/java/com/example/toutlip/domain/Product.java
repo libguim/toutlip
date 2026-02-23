@@ -22,4 +22,9 @@ public class Product extends BaseTimeEntity {
     @Column(nullable = false)
     private String name;
     private String category;
+
+    public Product(String name, Brand brand) {
+        this.name = name;
+        this.brand = brand;
+    }
 }

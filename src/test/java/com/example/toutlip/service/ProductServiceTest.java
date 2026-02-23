@@ -27,13 +27,19 @@ class ProductServiceTest {
     @DisplayName("[Product] 제품 조회 CRUD: 브랜드와 제품, 컬러의 계층적 조회 확인")
     void productSearchCrud() {
         // 1. Create: 브랜드 및 제품 생성
-        Brand brand = new Brand();
-        brand.setName("ToutLip");
+//        Brand brand = new Brand();
+        Brand brand = Brand.builder()
+                .name("ToutLip")
+                .build();
         brandRepository.save(brand);
 
-        Product product = new Product();
-        product.setName("시그니처 립");
-        product.setBrand(brand);
+//        Product product = new Product();
+//        product.setName("시그니처 립");
+//        product.setBrand(brand);
+        Product product = Product.builder()
+                .name("시그니처 립")
+                .brand(brand)
+                .build();
         productRepository.save(product);
 
         // 2. Read: 브랜드 ID 기반 제품 목록 조회

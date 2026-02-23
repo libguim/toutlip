@@ -12,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/try-on")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000")
 public class VirtualTryOnController {
     private final LipLogService lipLogService;
 

@@ -6,30 +6,40 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 public class CommunityDTO {
 
-    // 1. 게시글 등록용 (로그 ID만 전달하여 생성)
     @Getter
-    @Setter
+    @Setter // 📍 데이터를 직접 채우기 위해 추가
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class CommunityPostRequestDTO {
-        private Integer logId;
+        private List<Integer> logIds; // 다중 선택된 로그 ID 리스트
+        private String memo;          // 커뮤니티 게시글용 메모
     }
 
-    // 2. 커뮤니티 피드 조회용 (가장 복합적인 정보 전달)
     @Getter
-    @Setter
+    @Setter // 📍 서비스 레이어의 setNickname 등을 위해 필수!
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class CommunityPostResponseDTO {
         private Integer postId;
-        private String nickname;            // 작성자 닉네임
-        private String authorPersonalColor; // 작성자 퍼스널 컬러 (예: 봄 웜톤)
-        private String photoUrl;            // LipLog의 사진
-        private String brandName;           // 브랜드명
-        private String productName;         // 제품명
-        private String colorName;           // 컬러명
-        private Integer viewCount;          // 조회수
-        private Integer likeCount;          // 좋아요수
+        private String nickname;
+        private String memo;
+        private String authorPersonalColor;
+        private String photoUrl;
+        private String brandName;
+        private String productName;
+        private String colorName;
+        private Integer viewCount;
+        private Integer likeCount;
+
+        private boolean isLiked;
+        private String createdAt;
+
+        private List<LipLogDTO.LipLogResponseDTO> lipLogs;
     }
 }

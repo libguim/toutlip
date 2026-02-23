@@ -36,7 +36,7 @@ public class CommunityService {
     @Transactional(readOnly = true)
     public List<CommunityDTO.CommunityPostResponseDTO> findAllByPersonalColor(PersonalColorType type) {
         // 특정 톤(예: SPRING_WARM)에 맞는 게시글만 필터링하여 조회합니다.
-        return communityPostRepository.findAllByLipLog_User_PersonalColorType(type).stream()
+        return communityPostRepository.findAllByLipLogs_User_PersonalColorType(type).stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
@@ -73,18 +73,35 @@ public class CommunityService {
     }
 
     /**
-     * --- 내부 헬퍼 메서드: 엔티티를 DTO로 변환 ---
-     * ModelMapper가 처리하지 못하는 Enum 설명 등을 보완합니다.
+     * 내부 헬퍼 메서드: 엔티티를 DTO로 변환
      */
     private CommunityDTO.CommunityPostResponseDTO convertToResponseDTO(CommunityPost post) {
+        // 1. 기본 매핑 (필드명이 같은 viewCount, likeCount 등은 자동 매핑됨)
         CommunityDTO.CommunityPostResponseDTO dto = modelMapper.map(post, CommunityDTO.CommunityPostResponseDTO.class);
 
-        // 작성자의 퍼스널 컬러 한글 설명(예: "봄 웜톤")을 수동으로 매핑합니다.
-        if (post.getLipLog() != null && post.getLipLog().getUser() != null) {
-            String description = post.getLipLog().getUser().getPersonalColorType().getDescription();
-            dto.setAuthorPersonalColor(description);
-        }
+        // 2. 이름이 다른 postId는 명시적 세팅
+        dto.setPostId(post.getId());
+
+        // 3. 리스트에서 첫 번째 정보를 추출하여 DTO 필드에 맞게 세팅
+        post.getLipLogs().stream().findFirst().ifPresent(log -> {
+            if (log.getUser() != null) {
+                dto.setNickname(log.getUser().getNickname());
+                dto.setAuthorPersonalColor(log.getUser().getPersonalColorType().name());
+            }
+
+            dto.setPhotoUrl(log.getPhotoUrl());
+
+            // 📍 [수정 포인트] LipLog에 직접 필드가 없다면 연관된 엔티티에서 가져오기
+            // 아래 코드는 예시입니다. 모아나의 Product 엔티티 구조에 맞춰주세요!
+            if (log.getProductColor() != null) {
+                dto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
+                dto.setProductName(log.getProductColor().getProduct().getName());
+                dto.setColorName(log.getProductColor().getColorName());
+            }
+        });
 
         return dto;
     }
+
+
 }

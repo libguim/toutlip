@@ -1,6 +1,9 @@
 package com.example.toutlip.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
+
+import java.util.List;
 
 public class ProductDTO {
 
@@ -39,5 +42,35 @@ public class ProductDTO {
         private String texture; // 질감 정보
         private String productName; // 연관된 Product 엔티티의 name 매핑용
         private String brandName; // 제품을 통해 브랜드 이름까지 조회 시 사용
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ExternalProductRequestDTO {
+        private String brand;
+        private String name;
+        private String description;
+
+        @JsonProperty("tag_list")
+        private List<String> tagList;
+
+        @JsonProperty("product_colors")
+        private List<ExternalColorDTO> productColors;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ExternalColorDTO {
+        @JsonProperty("hex_value")
+        private String hexValue;
+
+        @JsonProperty("colour_name")
+        private String colourName;
     }
 }
