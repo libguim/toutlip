@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import axios from 'axios';
 
 const LipLog = () => {
+    const navigate = useNavigate();
     const [publicLogs, setPublicLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedImages, setSelectedImages] = useState([]); // 선택된 사진 ID들
@@ -16,15 +18,27 @@ const LipLog = () => {
     const [isEditMode, setIsEditMode] = useState(false); // 수정 모드 여부
     const [editingPostId, setEditingPostId] = useState(null); // 수정 중인 게시글 ID
 
-    // 📍 수정 버튼 클릭 시 실행 (기존 작성 모달을 재활용합니다)
-    const handleEditClick = (post) => {
-        setEditingPostId(post.postId);
-        setPostMemo(post.memo);
-        // 기존에 선택된 사진 ID들을 리스트에 담아줍니다.
-        setSelectedLogIds(post.lipLogs.map(log => log.logId)); 
-        setIsWriteModalOpen(true);
-        setIsEditMode(true); // 수정 모드 활성화
-    };
+
+// 📍 [수정] 피드 작성하기 버튼 클릭 시
+const handleCreateClick = () => {
+    navigate('/liplog/new'); // App.js에 등록한 경로로 이동
+};
+
+// 📍 [수정] 리스트 내 수정 버튼 클릭 시
+const handleEditClick = (post) => {
+    // App.js에 등록한 /liplog/edit/:postId 경로로 이동
+    navigate(`/liplog/edit/${post.postId}`); 
+};
+
+    // // 📍 수정 버튼 클릭 시 실행 (기존 작성 모달을 재활용합니다)
+    // const handleEditClick = (post) => {
+    //     setEditingPostId(post.postId);
+    //     setPostMemo(post.memo);
+    //     // 기존에 선택된 사진 ID들을 리스트에 담아줍니다.
+    //     setSelectedLogIds(post.lipLogs.map(log => log.logId)); 
+    //     setIsWriteModalOpen(true);
+    //     setIsEditMode(true); // 수정 모드 활성화
+    // };
 
     // 내 보관함 사진 불러오기 (작성 모달용)
     useEffect(() => {
@@ -258,35 +272,6 @@ const handlePostSubmit = async () => {
     // 1. 공개 허용된(is_public: true) 모든 유저의 로그 가져오기
     // LipLog.jsx 수정
     useEffect(() => {
-        // const fetchPublicLogs = async () => {
-        //     try {
-        //         setLoading(true);
-        //         // 📍 [핀셋] 포트 8080과 liplogs 경로를 정확히 일치시킴
-        //         const response = await axios.get('http://localhost:8080/api/liplogs/public');
-        //         setPublicLogs(response.data);
-        //     } catch (error) {
-        //         console.error("❌ 피드 로딩 실패 (서버 연결 확인):", error);
-                
-        //         // [참고] 에러 발생 시 더미 데이터는 유지하되 주소 수정이 우선입니다.
-        //         setPublicLogs([
-        //             {
-        //                 id: 1,
-        //                 userNickname: "jennie_kim",
-        //                 userProfileImg: "https://images.unsplash.com/photo-1581883556531-e5f8027f557f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-        //                 imageUrl: "https://images.unsplash.com/photo-1581883556531-e5f8027f557f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-        //                 timeAgo: "2h ago",
-        //                 likesCount: 1240,
-        //                 caption: "Finally found my perfect red! 💋",
-        //                 hexCode: "#A31D1D",
-        //                 productName: "Velvet Rouge",
-        //                 brandName: "CHANEL",
-        //                 productCode: "CRIMSON 504"
-        //             }
-        //         ]);
-        //     } finally {
-        //         setLoading(false);
-        //     }
-        // };
         fetchPublicLogs();
     }, []);
 
@@ -298,7 +283,7 @@ return (
 
             <HeaderArea>
                 <div className="logo">TOUT LIP</div>
-                <TextWriteButton onClick={() => setIsWriteModalOpen(true)}>
+                <TextWriteButton onClick={handleCreateClick}>
                     피드 작성하기 ✨
                 </TextWriteButton>
             </HeaderArea>
@@ -309,24 +294,24 @@ return (
                         <PostCard key={post.postId || index}>
                         <PostHeader>
                             <div className="user-info">
-                                <UserAvatar src={post.userProfileImg || '/default-avatar.png'} />
+                                {/* <UserAvatar src={post.userProfileImg || '/default-avatar.png'} /> */}
+                                <UserAvatar 
+                                    src={post.userProfileImg ? `http://localhost:8080/uploads/${post.userProfileImg}` : '/default-avatar.png'} 
+                                    alt="profile"
+                                />
                                 <div className="text-info">
                                     <span className="nickname">{post.nickname || '모아나'}</span>
-                                    {/* 📍 날짜 표시 추가 (예: 2026-02-23) */}
                                     <span className="date">{post.createdAt?.split('T')[0]}</span>
                                 </div>
                             </div>
                             <div className="btn-group">
                                 {/* 📍 수정 버튼 추가 */}
-                                <EditBtn onClick={() => handleEdit(post)}>수정</EditBtn>
+                                <EditBtn onClick={() => handleEditClick(post)}>수정</EditBtn>
                                 <DeleteBtn onClick={() => handleDelete(post.postId)}>삭제</DeleteBtn>
                             </div>
                         </PostHeader>
 
-                            {/* 📍 [차이점의 핵심] images 변수 대신 post.lipLogs를 슬라이더에 넘깁니다. */}
-                            {/* <ImageSlider images={post.lipLogs} /> */}
                             <ImageSlider 
-                                // 📍 [수정] lipLogs가 없으면 photoUrl을 배열로 감싸서 넘겨줍니다.
                                 images={post.lipLogs && post.lipLogs.length > 0 
                                     ? post.lipLogs 
                                     : [{ photoUrl: post.photoUrl }] 

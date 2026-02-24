@@ -7,6 +7,7 @@ import { theme } from './styles/theme'; // 방금 만드신 테마 파일
 import TryOn from './pages/TryOn';
 import LipLog from './pages/LipLog';
 import Profile from './pages/Profile';
+import PostForm from './pages/PostForm';
 
 function App() {
     return (
@@ -19,6 +20,8 @@ function App() {
                             <Routes>
                                 <Route path="/" element={<TryOn />} />
                                 <Route path="/liplog" element={<LipLog />} />
+                                <Route path="/liplog/new" element={<PostForm />} />
+                                <Route path="/liplog/edit/:postId" element={<PostForm />} />
                                 <Route path="/profile" element={<Profile />} />
                             </Routes>
                         </ContentArea>

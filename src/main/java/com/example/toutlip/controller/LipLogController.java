@@ -63,13 +63,30 @@ public class LipLogController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @DeleteMapping("/{postId}")
-    public ResponseEntity<Void> deleteCommunityPost(@PathVariable("postId") Integer postId) {
-        // 📍 디버깅용: 서버 콘솔에 ID가 찍히는지 확인하세요.
-        System.out.println("삭제 요청 들어온 ID: " + postId);
+//    @DeleteMapping("/{postId}")
+//    public ResponseEntity<Void> deleteCommunityPost(@PathVariable("postId") Integer postId) {
+//        // 📍 디버깅용: 서버 콘솔에 ID가 찍히는지 확인하세요.
+//        System.out.println("삭제 요청 들어온 ID: " + postId);
+//
+//        lipLogService.deleteCommunityPost(postId);
+//        return ResponseEntity.ok().build();
+//    }
 
-        lipLogService.deleteCommunityPost(postId);
+    // 프로필 탭에서 이미지(로그) 삭제 시 호출
+    @DeleteMapping("/user/log/{logId}")
+    public ResponseEntity<Void> deleteUserLog(@PathVariable Integer logId) {
+        // 이미 작성된 서비스의 deleteLipLog를 호출하면
+        // 내부 로직에 의해 관련 포스트까지 함께 삭제됩니다.
+        lipLogService.deleteLipLog(logId);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/community/{postId}")
+    public ResponseEntity<CommunityDTO.CommunityPostResponseDTO> getCommunityPost(@PathVariable Integer postId) {
+        // 서비스 레이어에서 특정 postId에 해당하는 데이터를 가져오는 로직을 호출합니다.
+        // 서비스에 해당 메서드가 없다면 추가 작성이 필요합니다.
+        CommunityDTO.CommunityPostResponseDTO post = lipLogService.readPostDetail(postId);
+        return ResponseEntity.ok(post);
     }
 
     @PutMapping("/community/{postId}")

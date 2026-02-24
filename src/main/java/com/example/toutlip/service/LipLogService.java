@@ -58,31 +58,7 @@ public class LipLogService {
                 })
                 .collect(Collectors.toList());
     }
-//    @Transactional(readOnly = true)
-//    public List<CommunityDTO.CommunityPostResponseDTO> readPublicLogs() {
-//        return communityPostRepository.findAll().stream()
-//                .map(post -> {
-//                    CommunityDTO.CommunityPostResponseDTO dto = new CommunityDTO.CommunityPostResponseDTO();
-//
-//                    // 📍 1. ID 타입을 Integer로 맞춰 500 에러 방지 (provided Long vs required Integer 해결)
-//                    dto.setPostId(post.getId());
-//                    dto.setMemo(post.getMemo());
-//                    dto.setLikeCount(post.getLikeCount() != null ? post.getLikeCount() : 0);
-//
-//                    // 📍 2. 이미지 리스트를 DTO에 담아줘야 리액트 슬라이더가 작동합니다.
-//                    if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
-//                        dto.setLipLogs(post.getLipLogs().stream()
-//                                .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
-//                                .collect(Collectors.toList()));
-//
-//                        // 대표 이미지 및 닉네임 설정 (Unknown 방지)
-//                        dto.setPhotoUrl(post.getLipLogs().get(0).getPhotoUrl());
-//                        dto.setNickname(post.getLipLogs().get(0).getUser().getNickname());
-//                    }
-//                    return dto;
-//                })
-//                .collect(Collectors.toList());
-//    }
+
     @Transactional
     public void updateCommunityPost(Integer postId, CommunityDTO.CommunityPostRequestDTO dto) {
         // 1. 기존 게시글 찾기
@@ -209,5 +185,31 @@ public class LipLogService {
     @Transactional
     public void deleteCommunityPost(Integer postId) { // Long 대신 Integer 사용
         communityPostRepository.deleteById(postId);
+    }
+
+    @Transactional(readOnly = true)
+    public CommunityDTO.CommunityPostResponseDTO readPostDetail(Integer postId) {
+        // 1. DB에서 해당 ID의 게시글 조회
+        CommunityPost post = communityPostRepository.findById(postId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("해당 게시글을 찾을 수 없습니다. ID: " + postId));
+
+        // 2. 엔티티를 DTO로 변환
+        CommunityDTO.CommunityPostResponseDTO dto = new CommunityDTO.CommunityPostResponseDTO();
+        dto.setPostId(post.getId());
+        dto.setMemo(post.getMemo());
+        dto.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : "");
+
+        // 3. 연결된 이미지(LipLog) 목록 변환 및 대표 이미지 설정
+        if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
+            dto.setLipLogs(post.getLipLogs().stream()
+                    .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
+                    .collect(Collectors.toList()));
+
+            // 첫 번째 사진을 대표 이미지와 닉네임 기준으로 설정
+            dto.setPhotoUrl(post.getLipLogs().get(0).getPhotoUrl());
+            dto.setNickname(post.getLipLogs().get(0).getUser().getNickname());
+        }
+
+        return dto;
     }
 }
