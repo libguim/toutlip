@@ -611,7 +611,7 @@ const ScrollArea = styled.div`
     flex: 1;            /* 📍 남은 공간을 모두 차지 */
     width: 100%;
     overflow-y: auto;   /* 📍 드디어 여기서 스크롤이 발생합니다! */
-    padding-bottom: 100px; /* 하단 탭바와 버튼 공간 확보 */
+    padding-bottom: 150px; /* 하단 탭바와 버튼 공간 확보 */
     
     /* 스크롤바 숨기기 (선택 사항 - 인스타 감성) */
     &::-webkit-scrollbar {
