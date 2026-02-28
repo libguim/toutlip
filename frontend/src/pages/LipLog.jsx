@@ -30,16 +30,6 @@ const handleEditClick = (post) => {
     navigate(`/liplog/edit/${post.postId}`); 
 };
 
-    // // 📍 수정 버튼 클릭 시 실행 (기존 작성 모달을 재활용합니다)
-    // const handleEditClick = (post) => {
-    //     setEditingPostId(post.postId);
-    //     setPostMemo(post.memo);
-    //     // 기존에 선택된 사진 ID들을 리스트에 담아줍니다.
-    //     setSelectedLogIds(post.lipLogs.map(log => log.logId)); 
-    //     setIsWriteModalOpen(true);
-    //     setIsEditMode(true); // 수정 모드 활성화
-    // };
-
     // 내 보관함 사진 불러오기 (작성 모달용)
     useEffect(() => {
         const fetchMyLogs = async () => {
@@ -61,18 +51,22 @@ const handleEditClick = (post) => {
         if (isWriteModalOpen) fetchMyLogs();
     }, [isWriteModalOpen]);
 
-    // 사진 선택/해제 로직
-    const toggleSelectPhoto = (id) => {
-        if (selectedLogIds.includes(id)) {
-            setSelectedLogIds(selectedLogIds.filter(logId => logId !== id));
-        } else {
-            if (selectedLogIds.length >= 5) {
-                alert("사진은 최대 5장까지만 선택 가능합니다! ✨");
-                return;
-            }
-            setSelectedLogIds([...selectedLogIds, id]);
+    // [수정] 네이버 블로그형 사진 선택/해제 로직
+    // [핀셋 교정] 이 이름이 아래 333라인의 onClick과 반드시 일치해야 합니다.
+const toggleSelectPhoto = (id) => {
+    if (selectedLogIds.includes(id)) {
+        // [해제] 선택 해제 시 해당 ID를 제거 (남은 사진들은 기존 순서 유지)
+        setSelectedLogIds(prev => prev.filter(logId => logId !== id));
+    } else {
+        // [추가] 최대 5장 제한 및 클릭한 순서대로 배열 끝에 추가
+        if (selectedLogIds.length >= 5) {
+            alert("사진은 최대 5장까지만 선택 가능합니다! ✨");
+            return;
         }
-    };
+        setSelectedLogIds(prev => [...prev, id]);
+    }
+};
+
 
     // LipLog 컴포넌트 내부
 const handleLike = async (postId) => {
@@ -157,7 +151,9 @@ const fetchPublicLogs = async () => {
         setLoading(true); // 📍 로딩 시작 시 상태 true 설정
         const response = await axios.get('http://localhost:8080/api/liplogs/public');
         
-        console.log("⭐ 드디어 들어온 데이터:", response.data);
+        if (response.data.length > 0) {
+            console.log("🧐 게시글 데이터 구조 확인:", response.data[0]);
+        }
         setPublicLogs(response.data);
     } catch (error) {
         console.error("❌ 피드 로딩 실패:", error);
@@ -167,85 +163,50 @@ const fetchPublicLogs = async () => {
     }
 };
 
-    // 📍 [핀셋] 기존에 fetchPublicLogs가 useEffect 안에만 있었다면 밖으로 빼서 선언해야 합니다.
-// const fetchPublicLogs = async () => {
-//     try {
-//         setLoading(true);
-//         const response = await axios.get('http://localhost:8080/api/liplogs/public');
-        
-//         // 📍 [디버깅] 서버에서 넘어온 실제 데이터 구조를 확인합니다.
-//         console.log("⭐ 수신된 피드 데이터:", response.data); 
-        
-//         setPublicLogs(response.data);
-//     } catch (error) {
-//         console.error("❌ 피드 로딩 상세:", error.response?.data || error.message);
-//     } finally {
-//         setLoading(false);
-//     }
-// };
-
-
+// [수정] 게시글 전송 로직 + 데이터 검증 로그
 const handlePostSubmit = async () => {
+    console.log("--- 🚀 데이터 전송 시작 ---");
+    console.log("전송될 최종 사진 순서(logIds):", selectedLogIds);
+    console.log("작성된 메모:", postMemo);
+
     if (selectedLogIds.length < 1) {
         alert("최소 1장의 사진을 선택해 주세요! ✨");
         return;
     }
 
+    const firstLog = myGalleryLogs.find(log => log.logId === selectedLogIds[0]);
+
+    const payload = {
+        logIds: selectedLogIds, 
+        memo: postMemo,
+        userId: localStorage.getItem("userId"),
+        brandName: firstLog?.brandName || "",
+        productName: firstLog?.productName || ""
+    };
+
     try {
         if (isEditMode) {
-            // 📍 [수정 로직] PUT 요청으로 이미지와 글을 모두 보냅니다.
-            await axios.put(`http://localhost:8080/api/liplogs/community/${editingPostId}`, {
-                logIds: selectedLogIds,
-                memo: postMemo
-            });
+            console.log(`🔄 수정 요청 발송 (postId: ${editingPostId})`);
+            await axios.put(`http://localhost:8080/api/liplogs/community/${editingPostId}`, payload);
             alert("피드가 수정되었습니다! ✨");
         } else {
-            // [기존 등록 로직] POST 요청
-            await axios.post('http://localhost:8080/api/liplogs/community', {
-                logIds: selectedLogIds,
-                memo: postMemo,
-                userId: localStorage.getItem("userId")
-            });
+            console.log("🆕 새 피드 등록 요청 발송");
+            await axios.post('http://localhost:8080/api/liplogs/community', payload);
             alert("피드가 공유되었습니다! 🌎💄");
         }
         
-        // 공통 마무리 로직
+        // 초기화 시 로그
+        console.log("✨ 작업 완료 및 상태 초기화");
         setIsWriteModalOpen(false);
         setIsEditMode(false);
         setPostMemo("");
         setSelectedLogIds([]);
         fetchPublicLogs();
     } catch (err) {
-        console.error("처리 실패:", err);
+        console.error("❌ 전송 실패!", err.response?.data || err.message);
         alert("오류가 발생했습니다.");
     }
 };
-
-    // 📍 [핀셋] 다중 선택 피드 저장 함수 (no-undef 에러 해결본)
-    // const handlePostSubmit = async () => {
-    //     // 인스타그램처럼 최소 1장 조건을 걸어줍니다.
-    //     if (selectedLogIds.length < 1) {
-    //         alert("최소 1장의 사진을 선택해 주세요! ✨");
-    //         return;
-    //     }
-
-    //     try {
-    //         await axios.post('http://localhost:8080/api/liplogs/community', {
-    //             logIds: selectedLogIds, // 수정된 ID 리스트 사용
-    //             memo: postMemo,
-    //             userId: localStorage.getItem("userId")
-    //         });
-            
-    //         alert("소중한 립 로그가 피드에 공유되었습니다! 🌎💄");
-    //         setIsWriteModalOpen(false);
-    //         setPostMemo(""); 
-    //         setSelectedLogIds([]); // 선택 초기화
-    //         fetchPublicLogs();
-    //     } catch (err) {
-    //         console.error("피드 공유 실패:", err);
-    //         alert("공유 중 오류가 발생했습니다.");
-    //     }
-    // };
 
     const handlePostUpload = async () => {
     if (selectedImages.length === 0 || selectedImages.length > 3) {
@@ -295,9 +256,24 @@ return (
                         <PostHeader>
                             <div className="user-info">
                                 {/* <UserAvatar src={post.userProfileImg || '/default-avatar.png'} /> */}
-                                <UserAvatar 
+                                {/* <UserAvatar 
                                     src={post.userProfileImg ? `http://localhost:8080/uploads/${post.userProfileImg}` : '/default-avatar.png'} 
                                     alt="profile"
+                                /> */}
+                                
+                                <UserAvatar 
+                                    src={
+                                        post.userProfileImg && post.userProfileImg.includes('.') 
+                                            ? `http://localhost:8080/uploads/${post.userProfileImg}` 
+                                            : '/default-avatar.png'
+                                    } 
+                                    alt="profile"
+                                    onError={(e) => { 
+                                        // 📍 [핀셋 수정] 무한 루프 방지: 이미 기본 이미지라면 더 이상 바꾸지 않음
+                                        if (e.target.src !== window.location.origin + '/default-avatar.png') {
+                                            e.target.src = '/default-avatar.png';
+                                        }
+                                    }}
                                 />
                                 <div className="text-info">
                                     <span className="nickname">{post.nickname || '모아나'}</span>
@@ -311,27 +287,75 @@ return (
                             </div>
                         </PostHeader>
 
+                        {/* 📍 [수정] 이미지 경로 매핑 정정: post.images 또는 post.lipLogs 확인 */}
                             <ImageSlider 
-                                images={post.lipLogs && post.lipLogs.length > 0 
-                                    ? post.lipLogs 
-                                    : [{ photoUrl: post.photoUrl }] 
+                                images={post.images && post.images.length > 0 
+                                    ? post.images 
+                                    : (post.photoUrl ? [{ photoUrl: post.photoUrl }] : [])
                                 } 
                             />
 
                             <ActionArea>
+                                <div className="icons" style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '15px', // 아이콘 사이의 여유 공간
+                                    padding: '0 12px' 
+                                }}>
+                                    <IconButton onClick={() => handleLike(post.postId)} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                        <span style={{ fontSize: '1.2rem' }}>{post.isLiked ? '❤️' : '🤍'}</span>
+                                        <span style={{ fontSize: '0.9rem', color: '#fff' }}>{post.likeCount || 0}</span>
+                                    </IconButton>
+                                    
+                                    <IconButton style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                        <span style={{ fontSize: '1.2rem' }}>💬</span>
+                                        <span style={{ fontSize: '0.9rem', color: '#fff' }}>댓글</span>
+                                    </IconButton>
+                                </div>
+                            </ActionArea>
+                            {/* <ActionArea>
                                 <div className="icons">
                                     <IconButton onClick={() => handleLike(post.postId)}>
                                         {post.isLiked ? '❤️' : '🤍'} {post.likeCount || 0}
                                     </IconButton>
                                     <IconButton>💬 댓글</IconButton>
                                 </div>
-                            </ActionArea>
+                            </ActionArea> */}
 
                             <PostContent>
-                                <p className="description">
-                                    <span className="bold">{post.nickname}</span>
+                                <p className="description" style={{ marginTop: '0', lineHeight: '1.5' }}>
+                                    <span className="bold" style={{ marginRight: '8px' }}>{post.nickname}</span>
                                     {post.memo}
                                 </p>
+                                {/* <p className="description">
+                                    <span className="bold">{post.nickname}</span>
+                                    {post.memo}
+                                </p> */}
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                                    <span style={{ 
+                                        color: '#D1BA94', 
+                                        fontSize: '0.75rem', 
+                                        fontWeight: '600',
+                                        background: 'rgba(209, 186, 148, 0.1)',
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                    }}>
+                                        {/* 컬러칩 (HexCode 데이터가 올 때까지 기본 골드 컬러 적용) */}
+                                        <div style={{ 
+                                            width: '10px', 
+                                            height: '10px', 
+                                            borderRadius: '50%', 
+                                            backgroundColor: post.lipLogs?.[0]?.hexCode || '#D1BA94',
+                                            border: '1px solid rgba(255,255,255,0.2)'
+                                        }} />
+                                        #{post.brandName || (post.lipLogs?.[0]?.brandName) || 'Brand'} {post.productName || (post.lipLogs?.[0]?.productName) || 'Product'}
+                                    </span>
+                                </div>
+
                             </PostContent>
                         </PostCard>
                     ))}
@@ -350,20 +374,35 @@ return (
                 <ModalOverlay>
                     <ModalContent>
                         <h2>Share Your Radiance</h2>
-                        <PhotoSelectorGrid>
-                            {myGalleryLogs.map(log => (
-                                <SelectableItem 
-                                    key={log.logId} 
-                                    $isSelected={selectedLogIds.includes(log.logId)}
-                                    onClick={() => toggleSelectPhoto(log.logId)}
-                                >
-                                    <img src={log.photoUrl} alt="Gallery" />
-                                    {selectedLogIds.includes(log.logId) && (
-                                        <CheckBadge>{selectedLogIds.indexOf(log.logId) + 1}</CheckBadge>
-                                    )}
-                                </SelectableItem>
-                            ))}
-                        </PhotoSelectorGrid>
+                            <PhotoSelectorGrid>
+                                {myGalleryLogs.map(log => {
+                                    // 📍 현재 사진이 몇 번째로 선택되었는지 인덱스를 찾습니다.
+                                    const selectedIndex = selectedLogIds.indexOf(log.logId);
+                                    const isSelected = selectedIndex !== -1;
+
+                                    return (
+                                        <SelectableItem 
+                                            key={log.logId} 
+                                            $isSelected={isSelected}
+                                            onClick={() => toggleSelectPhoto(log.logId)}
+                                        >
+                                            {/* <img src={log.photoUrl} alt="Gallery" /> */}
+                                            <ImageSlider 
+                                                images={selectedLogIds.map(id => 
+                                                    myGalleryLogs.find(log => log.logId === id)
+                                                ).filter(Boolean)} 
+                                            />
+
+                                            {/* 📍 선택된 경우에만 번호 배지(Badge)를 보여줍니다. */}
+                                            {isSelected && (
+                                                <CheckBadge>
+                                                    {selectedIndex + 1}
+                                                </CheckBadge>
+                                            )}
+                                        </SelectableItem>
+                                    );
+                                })}
+                            </PhotoSelectorGrid>
 
                         <MemoInput 
                             value={postMemo}
@@ -537,10 +576,29 @@ const SelectableItem = styled.div`
 `;
 
 const CheckBadge = styled.div`
-    position: absolute; top: 5px; right: 5px; background: #D1BA94;
-    color: #000; width: 20px; height: 20px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: bold;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #D1BA94; /* 뚜립 시그니처 컬러 */
+    color: #000;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    z-index: 2;
+`;
+
+const SelectionOverlay = styled.div`
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(209, 186, 148, 0.2); /* 선택 시 옅은 금빛 테두리 효과 */
+    border: 2px solid #D1BA94;
+    pointer-events: none;
 `;
 
 const MemoInput = styled.textarea`

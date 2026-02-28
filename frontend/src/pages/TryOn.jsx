@@ -6,16 +6,9 @@ import * as cam from '@mediapipe/camera_utils';
 import '../styles/css/TryOn.css';
 
 const TryOn = () => {
-    const [products, setProducts] = useState([
-        // { id: 1, name: 'Velvet Rouge', brand: 'CHANEL', hexCode: '#A31D1D', texture: 'matte' },
-        // { id: 2, name: 'Crimson 504', brand: 'CHANEL', hexCode: '#6B1414', texture: 'velvet' },
-        // { id: 3, name: 'Dusty Rose', brand: 'CHANEL', hexCode: '#8E5A52', texture: 'matte' },
-        // { id: 4, name: 'Deep Plum', brand: 'CHANEL', hexCode: '#4E1A2D', texture: 'glossy' }
-    ]);
-    const [selectedProduct, setSelectedProduct] = useState(
-        null
-        // id: 1, name: 'Velvet Rouge', brand: 'CHANEL', hexCode: '#A31D1D', texture: 'matte'
-    );
+    const [products, setProducts] = useState([]);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [currentBrand, setCurrentBrand] = useState('');
     const [loading, setLoading] = useState(true);
     const [activeTexture, setActiveTexture] = useState('ALL');
     const [brands, setBrands] = useState(['MAC', 'NARS']);
@@ -79,6 +72,7 @@ const TryOn = () => {
                     setBrands(extractedBrands);
 
                     const firstBrand = extractedBrands[0];
+                    setCurrentBrand(firstBrand);
                     console.log(`2. 요청할 브랜드명: ${firstBrand}`);
 
                     const colorRes = await axios.get(`http://localhost:8080/api/products/colors/brand/${firstBrand}`);
@@ -101,42 +95,6 @@ const TryOn = () => {
         };
         fetchData();
     }, []);
-
-    // useEffect(() => {
-    //     const fetchData = async () => {
-    //         try {
-    //             setLoading(true);
-    //             console.log("🚀 [Debug] 1. 서버 데이터 로드 시퀀스 시작...");
-
-    //             // 1. 브랜드 목록 요청
-    //             const brandRes = await axios.get('http://localhost:8080/api/products/brands');
-                
-    //             if (brandRes.data && brandRes.data.length > 0) {
-    //                 const extractedBrands = brandRes.data.map(b => b.name || b);
-    //                 setBrands(extractedBrands);
-                    
-    //                 // [핀셋 수정] '전체'가 아닌 '첫 번째 브랜드'의 데이터만 요청하여 
-    //                 // 초기 화면의 브랜드 선택 상자와 컬러칩을 일치시킵니다.
-    //                 const firstBrand = extractedBrands[0];
-    //                 console.log(`📡 [Debug] 2. ${firstBrand} 컬러칩 요청 중...`);
-                    
-    //                 const productRes = await axios.get(`http://localhost:8080/api/products/colors/brand/${firstBrand}`);
-                    
-    //                 if (productRes.data && productRes.data.length > 0) {
-    //                     setProducts(productRes.data);
-    //                     setSelectedProduct(productRes.data[0]);
-    //                     console.log("✅ [Debug] 3. 초기 브랜드 데이터 로드 및 선택 완료");
-    //                 }
-    //             }
-    //         } catch (err) {
-    //             console.error("❌ [Debug] 초기 데이터 로드 실패:", err.message);
-    //         } finally {
-    //             setLoading(false);
-    //             console.log("🏁 [Debug] 4. 데이터 로드 시퀀스 종료");
-    //         }
-    //     };
-    //     fetchData();
-    // }, []); // 컴포넌트 마운트 시 최초 1회만 실행
 
     useEffect(() => {
     if (loading) return;
@@ -269,36 +227,6 @@ const TryOn = () => {
             alert("저장에 실패했습니다. 콘솔을 확인해 주세요.");
         }
     };    
-    // const handleCapture = async () => {
-    //     const storedUserId = localStorage.getItem("userId");
-    //     if (!storedUserId) {
-    //         alert("로그인이 필요합니다! ✨");
-    //         return;
-    //     }
-
-    //     // [핀셋 교정] 선택된 제품이 있는지 확실히 체크
-    //     if (!selectedProduct) {
-    //         alert("시착할 컬러를 먼저 선택해 주세요.");
-    //         return;
-    //     }
-
-    //     const canvas = canvasRef.current;
-    //     const imageData = canvas.toDataURL("image/png");
-
-    //     try {
-    //         await axios.post('http://localhost:8080/api/try-on/save', {
-    //             userId: Number(storedUserId),
-    //             colorId: selectedProduct.id, 
-    //             photoUrl: imageData,
-    //             isPublic: false,
-    //             memo: `${selectedProduct.brandName || selectedProduct.brand} - ${selectedProduct.name} 시착`
-    //         });
-    //         alert("보관함에 저장되었습니다! ✨");
-    //     } catch (error) {
-    //         console.error("저장 실패:", error.message);
-    //         alert("저장에 실패했습니다.");
-    //     }
-    // };
 
     const handleSyncData = async () => {
         try {
@@ -337,38 +265,21 @@ const TryOn = () => {
 
     const handleBrandChange = async (e) => {
         const brandName = e.target.value;
+        setCurrentBrand(brandName);
         setActiveTexture('ALL'); 
 
         try {
             // [교정] 컨트롤러의 @GetMapping("/colors/brand/{brandName}") 구조와 일치시킴
             const url = `http://localhost:8080/api/products/colors/brand/${brandName}`;
             const res = await axios.get(url);
-            
             setProducts(res.data);
-            if (res.data && res.data.length > 0) {
-                setSelectedProduct(res.data[0]);
-            }
+            // if (res.data && res.data.length > 0) {
+            //     setSelectedProduct(res.data[0]);
+            // }
         } catch (err) {
             console.error("❌ 브랜드 변경 실패:", err);
         }
     };
-
-    // const handleDelete = async (logId) => {
-    //     if (!window.confirm("이 기록을 삭제할까요? 커뮤니티에 공유된 게시글도 함께 사라집니다.")) return;
-
-    //     try {
-    //         await axios.delete(`http://localhost:8080/api/lip-logs/${logId}`);
-            
-    //         // [핀셋 보완] 삭제 성공 후 목록에서 해당 아이템만 필터링하여 상태 업데이트
-    //         // 새로고침 없이 화면이 즉시 갱신됩니다.
-    //         setLogs(prevLogs => prevLogs.filter(log => log.id !== logId));
-            
-    //         alert("기록이 깔끔하게 삭제되었습니다. ✨");
-    //     } catch (error) {
-    //         console.error("삭제 중 오류 발생:", error);
-    //         alert("삭제에 실패했습니다. 다시 시도해 주세요.");
-    //     }
-    // };
 
     console.group("🎨 [컬러칩 출력 디버깅]");
     console.log("1. 전체 데이터 개수:", products.length);
@@ -404,7 +315,8 @@ const TryOn = () => {
                         <select 
                             onChange={handleBrandChange} 
                             // 선택된 제품의 브랜드명을 대문자로 표시하여 일관성 유지
-                            value={selectedProduct?.brandName?.toUpperCase() || ''}
+                            // value={selectedProduct?.brandName?.toUpperCase() || ''}
+                            value={currentBrand}
                             style={{ 
                                 minWidth: '130px', 
                                 padding: '8px 12px',
@@ -450,7 +362,8 @@ const TryOn = () => {
                                 <h3>{selectedProduct.name}</h3>
                             </div>
                             <p className="brand-name">
-                                {selectedProduct.brandName || selectedProduct.brand} - SELECTED LOOK
+                                {/* {selectedProduct.brandName || selectedProduct.brand} - SELECTED LOOK */}
+                                {(selectedProduct?.brandName || selectedProduct?.brand || currentBrand) || ''} - SELECTED LOOK
                             </p>
                         </ProductDetailInfo>
                     )}
@@ -550,37 +463,6 @@ const drawLips = (ctx, landmarks, color, texture) => {
     
     ctx.globalAlpha = 1.0; // 설정 초기화
 };
-// const drawLips = (ctx, landmarks, color, texture) => {
-//     const UPPER_LIP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78];
-//     const LOWER_LIP = [146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78];
-
-//     const drawPath = (indices) => {
-//         ctx.beginPath();
-//         indices.forEach((idx, i) => {
-//             const point = landmarks[idx];
-//             if (i === 0) ctx.moveTo(point.x * ctx.canvas.width, point.y * ctx.canvas.height);
-//             else ctx.lineTo(point.x * ctx.canvas.width, point.y * ctx.canvas.height);
-//         });
-//         ctx.closePath();
-//     };
-
-//     ctx.globalAlpha = texture === 'glossy' ? 0.4 : 0.6;
-//     ctx.fillStyle = color;
-
-//     drawPath(UPPER_LIP);
-//     ctx.fill();
-//     drawPath(LOWER_LIP);
-//     ctx.fill();
-
-//     if (texture === 'glossy') {
-//         ctx.globalAlpha = 0.25;
-//         ctx.fillStyle = "#F7E7CE"; // 샴페인 골드 하이라이트
-//         ctx.beginPath();
-//         ctx.ellipse(landmarks[0].x * ctx.canvas.width, landmarks[0].y * ctx.canvas.height, 15, 7, 0, 0, Math.PI * 2);
-//         ctx.fill();
-//     }
-//     ctx.globalAlpha = 1.0;
-// };
 
 // --- Styled Components (Dark & Luxury Gold) ---
 const rotate = keyframes`
@@ -808,40 +690,11 @@ const ChipWrapper = styled.div.attrs(props => ({
     }
 `;
 
-// const ChipWrapper = styled.div`
-//     width: 60px; /* 크기를 살짝 키움 */
-//     height: 60px;
-//     border-radius: 50%;
-//     display: flex;
-//     align-items: center;
-//     justify-content: center;
-//     cursor: pointer;
-//     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-//     /* 선택되었을 때만 이미지처럼 얇은 골드 테두리 추가 */
-//     border: ${props => props.$active ? '1.5px solid #D1BA94' : '1.5px solid transparent'};
-//     padding: 4px; /* 테두리와 안쪽 칩 사이의 여백 */
-
-//     .chip-inner {
-//         width: 100%;
-//         height: 100%;
-//         border-radius: 50%;
-//         background-color: ${props => props.$color};
-//         /* 칩 자체에도 미세한 입체감 추가 */
-//         box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-//     }
-
-//     /* 마우스 호버 시 효과 */
-//     &:hover {
-//         transform: scale(1.05);
-//     }
-// `;
-
 const TextureSlider = styled.div`
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding-bottom: 5px;
+    // padding-bottom: 5px;
     &::-webkit-scrollbar { display: none; } /* 깔끔한 UI를 위해 스크롤바 숨김 */
 `;
 

@@ -31,33 +31,85 @@ public class LipLogService {
     private final UserRepository userRepository;
     private final ProductColorRepository colorRepository;
 
-    // LipLogService.java 수정
-
     @Transactional(readOnly = true)
     public List<CommunityDTO.CommunityPostResponseDTO> readPublicLogs() {
-        // 📍 1. 정렬되지 않은 전체 데이터를 가져와서
         return communityPostRepository.findAll().stream()
-                // 📍 2. ID(또는 생성시간) 기준 역순 정렬 추가 (최신 글이 위로!)
+                // 최신 글이 위로 오도록 역순 정렬
                 .sorted(Comparator.comparing(CommunityPost::getId).reversed())
                 .map(post -> {
                     CommunityDTO.CommunityPostResponseDTO dto = new CommunityDTO.CommunityPostResponseDTO();
-
                     dto.setPostId(post.getId());
                     dto.setMemo(post.getMemo());
+                    // CommunityPost 엔티티에 직접 저장된 브랜드/제품명 우선 세팅
+                    dto.setBrandName(post.getBrandName());
+                    dto.setProductName(post.getProductName());
                     dto.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : "");
 
                     if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
+                        // 📍 [핀셋 수정] 각 LipLog의 상세 정보(HexCode 포함)를 수동으로 매핑
                         dto.setLipLogs(post.getLipLogs().stream()
-                                .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
+                                .map(log -> {
+                                    LipLogDTO.LipLogResponseDTO logDto = modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
+
+                                    // 연관된 제품 컬러 정보가 있다면 상세 정보(HexCode 등)를 강제로 주입
+                                    if (log.getProductColor() != null) {
+                                        logDto.setHexCode(log.getProductColor().getHexCode());
+                                        logDto.setColorName(log.getProductColor().getColorName());
+
+                                        if (log.getProductColor().getProduct() != null) {
+                                            logDto.setProductName(log.getProductColor().getProduct().getName());
+                                            logDto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
+                                        }
+                                    }
+                                    return logDto;
+                                })
                                 .collect(Collectors.toList()));
 
+                        // 첫 번째 사진 정보를 대표 데이터로 설정
                         dto.setPhotoUrl(post.getLipLogs().get(0).getPhotoUrl());
                         dto.setNickname(post.getLipLogs().get(0).getUser().getNickname());
+
+                        String profileImg = post.getLipLogs().get(0).getUser().getProfileImg();
+                        dto.setUserProfileImg((profileImg == null || profileImg.isEmpty()) ? "default-avatar.png" : profileImg);
+
+                        // 3. 상위 DTO 제품 정보 보정 (기존 코드 유지)
+                        if (!dto.getLipLogs().isEmpty()) {
+                            dto.setBrandName(dto.getLipLogs().get(0).getBrandName());
+                            dto.setProductName(dto.getLipLogs().get(0).getProductName());
+                        }
                     }
                     return dto;
                 })
                 .collect(Collectors.toList());
     }
+
+//    @Transactional(readOnly = true)
+//    public List<CommunityDTO.CommunityPostResponseDTO> readPublicLogs() {
+//        // 📍 1. 정렬되지 않은 전체 데이터를 가져와서
+//        return communityPostRepository.findAll().stream()
+//                // 📍 2. ID(또는 생성시간) 기준 역순 정렬 추가 (최신 글이 위로!)
+//                .sorted(Comparator.comparing(CommunityPost::getId).reversed())
+//                .map(post -> {
+//                    CommunityDTO.CommunityPostResponseDTO dto = new CommunityDTO.CommunityPostResponseDTO();
+//
+//                    dto.setPostId(post.getId());
+//                    dto.setMemo(post.getMemo());
+//                    dto.setBrandName(post.getBrandName());
+//                    dto.setProductName(post.getProductName());
+//                    dto.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : "");
+//
+//                    if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
+//                        dto.setLipLogs(post.getLipLogs().stream()
+//                                .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
+//                                .collect(Collectors.toList()));
+//
+//                        dto.setPhotoUrl(post.getLipLogs().get(0).getPhotoUrl());
+//                        dto.setNickname(post.getLipLogs().get(0).getUser().getNickname());
+//                    }
+//                    return dto;
+//                })
+//                .collect(Collectors.toList());
+//    }
 
     @Transactional
     public void updateCommunityPost(Integer postId, CommunityDTO.CommunityPostRequestDTO dto) {
@@ -130,9 +182,23 @@ public class LipLogService {
     public void createMultiPhotoPost(List<Integer> logIds, String memo) {
         List<LipLog> selectedLogs = lipLogRepository.findAllById(logIds);
 
+        String brand = "";
+        String product = "";
+
+        if (!selectedLogs.isEmpty()) {
+            LipLog firstLog = selectedLogs.get(0);
+            // LipLog -> ProductColor -> Product -> Brand 관계를 타고 명칭을 가져옴
+            if (firstLog.getProductColor() != null && firstLog.getProductColor().getProduct() != null) {
+                brand = firstLog.getProductColor().getProduct().getBrand().getName();
+                product = firstLog.getProductColor().getProduct().getName();
+            }
+        }
+
         // 1. post를 먼저 선언 및 빌드
         CommunityPost post = CommunityPost.builder()
                 .memo(memo)
+                .brandName(brand)    // 📍 이 필드들이 CommunityPost 엔티티에 있어야 합니다.
+                .productName(product)
                 .build();
 
         // 2. 루프 안에서 사용

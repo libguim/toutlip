@@ -9,6 +9,7 @@ const Profile = () => {
     const [form, setForm] = useState({ username: '', password: '', nickname: '' });
     const [myLogs, setMyLogs] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [viewLog, setViewLog] = useState(null); // 크게 보기 할 사진 데이터
     const [nickname, setNickname] = useState(localStorage.getItem("nickname") || "Toutlip");
 
     // --- 2. 인증 핸들러 (회원가입 & 로그인) ---
@@ -226,11 +227,28 @@ const Profile = () => {
                 }}>LOGOUT</LogoutBtn>
             </HeaderSection>
 
-            <StatSection>
+            {/* <StatSection>
                 <StatItem><span className="count">{myLogs.length}</span><span className="label">POSTS</span></StatItem>
                 <StatItem><span className="count">1.2k</span><span className="label">FOLLOWERS</span></StatItem>
                 <StatItem><span className="count">85</span><span className="label">FOLLOWING</span></StatItem>
-            </StatSection>
+            </StatSection> */}
+
+            <StatsContainer>
+                <StatItem>
+                    {/* 1. myGalleryLogs 대신 현재 상태인 myLogs를 사용합니다. */}
+                    <div className="count">{myLogs.length}</div>
+                    <div className="label">MY LOGS</div>
+                </StatItem>
+                <StatItem>
+                    {/* 2. SHARED는 내 로그들(myLogs) 중 isPublic이 true인 것만 필터링해서 카운트합니다. */}
+                    <div className="count">{myLogs.filter(log => log.isPublic).length}</div>
+                    <div className="label">SHARED</div>
+                </StatItem>
+                <StatItem>
+                    <div className="count">24</div> {/* 추후 좋아요 API 연결 */}
+                    <div className="label">FAVORITES</div>
+                </StatItem>
+            </StatsContainer>
 
             <ContentSection>
                 <SectionTitle><GridIcon /> MY GALLERY</SectionTitle>
@@ -241,7 +259,7 @@ const Profile = () => {
                 // Profile.jsx 갤러리 렌더링 부분
                 <GalleryGrid>
                     {myLogs.map((log) => (
-                        <GalleryItem key={log.logId}> {/* 📍 logId로 고유 키 설정 */}
+                        <GalleryItem key={log.logId} onClick={() => setViewLog(log)}> {/* 📍 logId로 고유 키 설정 */}
                             <LogImage src={log.photoUrl} alt="Lip Log" />
                             
                             <LogOverlay className="overlay">
@@ -282,6 +300,30 @@ const Profile = () => {
                     <EmptyGalleryCard><p>아직 저장된 룩이 없습니다.</p></EmptyGalleryCard>
                 )}
             </ContentSection>
+
+            {/* 📍 사진 상세 조회 및 다운로드 모달 */}
+            {viewLog && (
+                <ModalOverlay onClick={() => setViewLog(null)}>
+                    <DetailModalContent onClick={(e) => e.stopPropagation()}>
+                        <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
+                        <DetailImage src={viewLog.photoUrl} alt="Detail View" />
+                        
+                        <ModalActionArea>
+                            <div className="info">
+                                <h4>{viewLog.brandName}</h4>
+                                <p>{viewLog.productName}</p>
+                            </div>
+                            {/* 📍 다운로드 버튼: 브라우저 기본 다운로드 유도 */}
+                            <DownloadLink 
+                                href={viewLog.photoUrl} 
+                                download={`ToutLip_${viewLog.logId}.png`}
+                            >
+                                SAVE IMAGE
+                            </DownloadLink>
+                        </ModalActionArea>
+                    </DetailModalContent>
+                </ModalOverlay>
+            )}
         </ProfileContainer>
     );
 };
@@ -348,10 +390,48 @@ const StatSection = styled.div`
     border-bottom: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 30px;
 `;
 
+const StatsContainer = styled.div`
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 20px 0;
+  margin: 10px 20px;
+  background: rgba(255, 255, 255, 0.03); /* 아주 살짝 밝은 배경으로 영역 구분 */
+  border-radius: 15px;
+`;
+
 const StatItem = styled.div`
-    display: flex; flex-direction: column; align-items: center;
-    .count { font-size: 1.1rem; font-weight: 600; color: #FFF; }
-    .label { font-size: 0.6rem; color: #666; margin-top: 4px; letter-spacing: 1px; }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+
+  /* 항목 사이의 얇은 구분선 */
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: rgba(209, 186, 148, 0.2); /* 샴페인 골드빛 투명 선 */
+  }
+
+  .count {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff; /* 숫자는 흰색으로 선명하게 */
+    margin-bottom: 4px;
+  }
+
+  .label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: #D1BA94; /* 라벨은 시그니처 골드 컬러 */
+    letter-spacing: 1.5px; /* 자간을 넓혀 고급스러운 느낌 */
+    text-transform: uppercase;
+  }
 `;
 
 const ContentSection = styled.div` margin-bottom: 30px; `;
@@ -484,6 +564,73 @@ const DeleteBtn = styled.button`
     &:hover { transform: scale(1.2); }
 `;
 
+const DetailModalContent = styled.div`
+    background: #111;
+    width: 90%;
+    max-width: 450px;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #222;
+`;
 
+const DetailImage = styled.img`
+    width: 100%;
+    aspect-ratio: 1 / 1.2;
+    object-fit: cover;
+`;
+
+const ModalActionArea = styled.div`
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #000;
+
+    .info h4 { color: #D1BA94; font-size: 0.9rem; margin: 0; letter-spacing: 1px; }
+    .info p { color: #888; font-size: 0.75rem; margin: 4px 0 0 0; }
+`;
+
+const DownloadLink = styled.a`
+    background: #D1BA94;
+    color: #000;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s;
+
+    &:hover { background: #fff; transform: translateY(-2px); }
+`;
+
+const CloseBtn = styled.button`
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  backdrop-filter: blur(5px); /* 배경을 흐릿하게 만드는 효과 (선택 사항) */
+  cursor: pointer; /* 배경 클릭 시 닫히는 느낌을 줄 때 */
+`;
 
 export default Profile;

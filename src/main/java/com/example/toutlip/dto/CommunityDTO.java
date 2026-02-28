@@ -28,6 +28,7 @@ public class CommunityDTO {
     public static class CommunityPostResponseDTO {
         private Integer postId;
         private String nickname;
+        private String userProfileImg;
         private String memo;
         private String authorPersonalColor;
         private String photoUrl;

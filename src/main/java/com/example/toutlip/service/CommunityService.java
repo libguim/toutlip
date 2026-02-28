@@ -65,11 +65,31 @@ public class CommunityService {
     /**
      * 5. [Delete] 게시글 삭제
      */
+//    public void delete(Integer id) {
+//        if (!communityPostRepository.existsById(id)) {
+//            throw new IllegalArgumentException("삭제할 게시글이 없습니다.");
+//        }
+//        communityPostRepository.deleteById(id); //
+//    }
+    @Transactional
     public void delete(Integer id) {
-        if (!communityPostRepository.existsById(id)) {
-            throw new IllegalArgumentException("삭제할 게시글이 없습니다.");
+        // 1. 삭제할 게시글을 먼저 조회합니다.
+        CommunityPost post = communityPostRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("삭제할 게시글이 없습니다."));
+
+        // 2. 📍 [핵심 핀셋] 연결된 사진(LipLog)들을 보관함용으로 되돌립니다.
+        if (post.getLipLogs() != null) {
+            post.getLipLogs().forEach(log -> {
+                log.setCommunityPost(null); // 피드와의 연결 고리 제거
+                log.setIsPublic(false);      // 다시 내 보관함 전용으로 변경
+            });
+
+            // 리스트를 비워 관계를 완전히 정리합니다.
+            post.getLipLogs().clear();
         }
-        communityPostRepository.deleteById(id); //
+
+        // 3. 이제 게시글만 안전하게 삭제합니다.
+        communityPostRepository.delete(post);
     }
 
     /**

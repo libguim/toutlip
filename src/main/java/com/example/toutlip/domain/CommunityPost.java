@@ -22,13 +22,15 @@ public class CommunityPost extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    String brandName;
+    String productName;
+
+    @Builder.Default
     @OneToMany(
             mappedBy = "communityPost", // 📍 연관 관계의 주인인 LipLog의 필드명을 지정
-            cascade = CascadeType.ALL,  // 📍 게시글 삭제 시 이미지도 함께 삭제되도록 설정
-            orphanRemoval = true
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE}
     )
-//    @JoinColumn(name = "community_post_id")
-//    @Builder.Default
+
     private List<LipLog> lipLogs = new ArrayList<>();
 
     @Builder.Default
