@@ -338,27 +338,45 @@ const GallerySection = styled.div`
   }
 `;
 
-const GridItem = styled.div`
+// PostForm.jsx 하단 GridItem 스타일 컴포넌트 내부 교체
+export const GridItem = styled.div`
   position: relative;
   aspect-ratio: 1 / 1;
-  overflow: hidden; 
-  /* 📍 미세한 틈새가 배경색(#000)과 섞여 걸리는 느낌을 주지 않도록 설정 */
-  background-color: #000; 
+  overflow: hidden;
+  cursor: pointer;
+  background-color: #000;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* 📍 1. 인라인 여백(baseline) 제거로 하단 틈새 차단 */
-    display: block; 
-    
-    /* 📍 2. 소수점 오차로 인한 경계면 '걸림' 현상을 방지하기 위해 0.5% 미세 확대 */
-    /* 이 설정이 스크롤 시 시각적 끊김을 없애줍니다. */
-    transform: scale(1.005); 
-    
-    /* 📍 3. 렌더링 최적화 속성 추가 */
-    image-rendering: -webkit-optimize-contrast;
-    backface-visibility: hidden;
+    display: block;
+    /* 📍 선택되었을 때만 밝기를 조절하거나 테두리 효과를 줄 수 있습니다. */
+    opacity: ${props => props.$isSelected ? 0.6 : 1}; 
+    transform: scale(1.005);
+    /* 📍 선택 시 초록색 테두리 효과 추가 */
+    border: ${props => props.$isSelected ? '2px solid #4CAF50' : 'none'};
+    box-sizing: border-box;
+  }
+
+  /* 📍 [핵심] 초록색 숫자 배지 디자인 (네이버 스타일) */
+  .badge {
+    position: absolute;
+    top: 8px;           /* 📍 이미지 내부 여백 */
+    right: 8px;
+    background: #4CAF50; /* 📍 네이버의 상징적인 초록색 */
+    color: #fff;
+    width: 22px;        /* 📍 번호가 잘 보일 수 있는 적절한 크기 */
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    z-index: 10;
+    /* 📍 숫자가 더 도드라져 보이도록 섀도우 추가 */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
 `;
 
