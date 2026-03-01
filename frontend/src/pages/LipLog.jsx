@@ -5,7 +5,6 @@ import axios from 'axios';
 
 const LipLog = () => {
     const navigate = useNavigate();
-    const [publicLogs, setPublicLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedImages, setSelectedImages] = useState([]); // 선택된 사진 ID들
     const [showWriteModal, setShowWriteModal] = useState(false);
@@ -17,6 +16,7 @@ const LipLog = () => {
     const [selectedLogIds, setSelectedLogIds] = useState([]); // 선택된 사진 ID들
     const [isEditMode, setIsEditMode] = useState(false); // 수정 모드 여부
     const [editingPostId, setEditingPostId] = useState(null); // 수정 중인 게시글 ID
+    const [publicLogs, setPublicLogs] = useState([]);
 
 
 // 📍 [수정] 피드 작성하기 버튼 클릭 시
@@ -83,17 +83,49 @@ const handleLike = async (postId) => {
 
 // LipLog.jsx
 
+// const handleDelete = async (postId) => {
+//     if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    
+//     try {
+//         // 📍 [정밀 수정] 컨트롤러 주소인 /api/liplogs/${postId} 로 변경
+//         await axios.delete(`http://localhost:8080/api/liplogs/${postId}`);
+//         setPublicLogs(prevPosts => prevPosts.filter(post => post.postId !== postId));
+//         alert("삭제 성공! ✨");
+//         fetchPublicLogs();
+//     } catch (error) {
+//         // 📍 에러 상세 로그를 확인하기 위해 추가
+//         console.error("삭제 실패 상세:", error.response?.data || error.message);
+//     }
+// };
+
+// LipLog.jsx 내 handleDelete 함수 교정
 const handleDelete = async (postId) => {
-    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    console.log("🗑 삭제 요청 게시글 ID:", postId);
+    if (!window.confirm("이 피드 게시글을 삭제하시겠습니까? (보관함 원본은 유지됩니다)")) return;
     
     try {
-        // 📍 [정밀 수정] 컨트롤러 주소인 /api/liplogs/${postId} 로 변경
-        await axios.delete(`http://localhost:8080/api/liplogs/${postId}`);
-        alert("삭제 성공! ✨");
-        fetchPublicLogs();
+        console.log(`%c[피드 삭제 시도] ID: ${postId}`, "color: #f39c12;");
+
+        // 📍 [핀셋 수정] 주소를 /api/liplogs/ 가 아니라 /api/community/ 로 변경!
+        // 그래야 CommunityController.java 의 deletePost 메서드가 실행됨
+        const response = await axios.delete(`http://localhost:8080/api/community/${postId}`);
+        
+        if (response.status === 200 || response.status === 204) {
+            console.log("%c[삭제 성공] ✅ 립로그 게시글만 삭제 완료", "color: #3498db;");
+
+            // UI 업데이트: 립로그 목록에서 제거
+            setPublicLogs(prev => prev.filter(post => post.postId !== postId));
+            alert("피드가 삭제되었습니다! ✨");
+            
+            // 📍 [선택] 최신 데이터 동기화
+            fetchPublicLogs(); 
+        }
     } catch (error) {
-        // 📍 에러 상세 로그를 확인하기 위해 추가
+        if (error.response?.status === 404) {
+        console.error("❌ 경로 오류: 서버에 /api/community/ 삭제 API가 있는지 확인하세요.");
+        }
         console.error("삭제 실패 상세:", error.response?.data || error.message);
+        alert("삭제 중 문제가 발생했습니다. 콘솔을 확인해 주세요.");
     }
 };
 
@@ -127,8 +159,17 @@ const ImageSlider = ({ images }) => { // 📍 여기서 'images'를 받는지 �
     return (
         <SliderContainer>
             <ImageWrapper $current={current}>
-                {images.map((img, idx) => (
+                {/* {images.map((img, idx) => (
                     <PostImage key={idx} src={img.photoUrl} alt="lip log" />
+                ))} */}
+                {images.map((img, idx) => (
+                    <PostImage 
+                        key={idx} 
+                        // src={img.photoUrl || img.imageUrl || img} // 👈 이 부분을 수정하여 다양한 키 값에 대응
+                        src={(img.photoUrl || img.imageUrl || img || "").toString().trim() || "/default-lip.png"}
+                        alt="lip log" 
+                        onError={(e) => { e.target.src = "/default-lip.png"; }}
+                    />
                 ))}
             </ImageWrapper>
             
@@ -145,29 +186,32 @@ const ImageSlider = ({ images }) => { // 📍 여기서 'images'를 받는지 �
     );
 };
 
-// LipLog.jsx 내부의 fetchPublicLogs 함수 수정
 const fetchPublicLogs = async () => {
     try {
-        setLoading(true); // 📍 로딩 시작 시 상태 true 설정
+        setLoading(true);
         const response = await axios.get('http://localhost:8080/api/liplogs/public');
         
+        // 🔍 [디버깅 1] 서버에서 내려주는 전체 데이터 구조 확인
+        console.log("📡 [피드 전체 데이터]:", response.data);
+
         if (response.data.length > 0) {
-            console.log("🧐 게시글 데이터 구조 확인:", response.data[0]);
+            // 🔍 [디버깅 2] 첫 번째 게시글의 사진 경로가 유효한지 확인
+            const firstPost = response.data[0];
+            console.log(`📝 게시글(${firstPost.postId}) 대표사진:`, firstPost.photoUrl);
+            console.log(`🖼 게시글(${firstPost.postId}) 상세사진 배열:`, firstPost.lipLogs);
         }
         setPublicLogs(response.data);
     } catch (error) {
-        console.error("❌ 피드 로딩 실패:", error);
+        console.error("❌ 피드 로딩 실패. 서버 상태를 확인하세요:", error.response || error);
     } finally {
-        // 📍 [핵심 수정] 성공하든 실패하든 로딩 상태를 반드시 false로 바꿔야 화면이 뜹니다!
         setLoading(false); 
     }
 };
 
-// [수정] 게시글 전송 로직 + 데이터 검증 로그
+
 const handlePostSubmit = async () => {
     console.log("--- 🚀 데이터 전송 시작 ---");
     console.log("전송될 최종 사진 순서(logIds):", selectedLogIds);
-    console.log("작성된 메모:", postMemo);
 
     if (selectedLogIds.length < 1) {
         alert("최소 1장의 사진을 선택해 주세요! ✨");
@@ -195,18 +239,76 @@ const handlePostSubmit = async () => {
             alert("피드가 공유되었습니다! 🌎💄");
         }
         
-        // 초기화 시 로그
+        // 📍 [핀셋 수정] 작업 완료 후 모달 및 수정 모드 확실히 종료
         console.log("✨ 작업 완료 및 상태 초기화");
-        setIsWriteModalOpen(false);
+        
+        // 1. 작성/수정 모달 닫기 (이게 빠지면 수정 후에도 모달이 남을 수 있음)
+        setIsWriteModalOpen(false); 
+        setShowWriteModal(false); // 기존 상태 변수도 함께 해제
+        
+        // 2. 수정 모드 관련 상태 초기화
         setIsEditMode(false);
+        setEditingPostId(null);
+        
+        // 3. 입력 데이터 초기화
         setPostMemo("");
         setSelectedLogIds([]);
+        
+        // 4. 피드 목록 새로고침 (백엔드에서 수정된 최신 복제본 사진을 가져옴)
         fetchPublicLogs();
+
     } catch (err) {
         console.error("❌ 전송 실패!", err.response?.data || err.message);
-        alert("오류가 발생했습니다.");
+        alert("전송 중 오류가 발생했습니다. 다시 시도해 주세요.");
     }
 };
+
+
+
+// [수정] 게시글 전송 로직 + 데이터 검증 로그
+// const handlePostSubmit = async () => {
+//     console.log("--- 🚀 데이터 전송 시작 ---");
+//     console.log("전송될 최종 사진 순서(logIds):", selectedLogIds);
+//     console.log("작성된 메모:", postMemo);
+
+//     if (selectedLogIds.length < 1) {
+//         alert("최소 1장의 사진을 선택해 주세요! ✨");
+//         return;
+//     }
+
+//     const firstLog = myGalleryLogs.find(log => log.logId === selectedLogIds[0]);
+
+//     const payload = {
+//         logIds: selectedLogIds, 
+//         memo: postMemo,
+//         userId: localStorage.getItem("userId"),
+//         brandName: firstLog?.brandName || "",
+//         productName: firstLog?.productName || ""
+//     };
+
+//     try {
+//         if (isEditMode) {
+//             console.log(`🔄 수정 요청 발송 (postId: ${editingPostId})`);
+//             await axios.put(`http://localhost:8080/api/liplogs/community/${editingPostId}`, payload);
+//             alert("피드가 수정되었습니다! ✨");
+//         } else {
+//             console.log("🆕 새 피드 등록 요청 발송");
+//             await axios.post('http://localhost:8080/api/liplogs/community', payload);
+//             alert("피드가 공유되었습니다! 🌎💄");
+//         }
+        
+//         // 초기화 시 로그
+//         console.log("✨ 작업 완료 및 상태 초기화");
+//         setIsWriteModalOpen(false);
+//         setIsEditMode(false);
+//         setPostMemo("");
+//         setSelectedLogIds([]);
+//         fetchPublicLogs();
+//     } catch (err) {
+//         console.error("❌ 전송 실패!", err.response?.data || err.message);
+//         alert("오류가 발생했습니다.");
+//     }
+// };
 
     const handlePostUpload = async () => {
     if (selectedImages.length === 0 || selectedImages.length > 3) {
@@ -287,11 +389,11 @@ return (
                             </div>
                         </PostHeader>
 
-                        {/* 📍 [수정] 이미지 경로 매핑 정정: post.images 또는 post.lipLogs 확인 */}
                             <ImageSlider 
-                                images={post.images && post.images.length > 0 
-                                    ? post.images 
-                                    : (post.photoUrl ? [{ photoUrl: post.photoUrl }] : [])
+                                images={
+                                    (post.images && post.images.length > 0) ? post.images : 
+                                    (post.lipLogs && post.lipLogs.length > 0) ? post.lipLogs : 
+                                    (post.photoUrl ? [{ photoUrl: post.photoUrl }] : [])
                                 } 
                             />
 

@@ -11,6 +11,50 @@ const Profile = () => {
     const [loading, setLoading] = useState(false);
     const [viewLog, setViewLog] = useState(null); // 크게 보기 할 사진 데이터
     const [nickname, setNickname] = useState(localStorage.getItem("nickname") || "Toutlip");
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedLog, setSelectedLog] = useState(null);
+
+
+// Profile.jsx 상단 상태 정의 아래에 추가
+const fetchMyLogs = async () => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+        const res = await axios.get(`http://localhost:8080/api/liplogs/user/${userId}`);
+        // 📍 [대원칙 필터] 서버에서 필터링하지 않고 전체를 받아옵니다.
+        setMyLogs(res.data);
+    } catch (err) {
+        console.error("로그 로딩 실패:", err);
+    } finally {
+        setLoading(false);
+    }
+};
+
+// 페이지 로드 시 실행
+useEffect(() => {
+    fetchMyLogs();
+}, [userId]);
+
+
+
+    const handleImageClick = (log) => {
+        setSelectedLog(log);
+        setIsModalOpen(true);
+    };
+
+
+    const handleDeleteWithConfirm = (logId) => {
+        // 📍 사용자가 한 번 더 생각하게 만드는 시각적 장치
+        const isConfirmed = window.confirm(
+            "⚠️ 정말로 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, [립로그 탭]에 게시된 관련 포스트도 모두 삭제됩니다."
+        );
+
+        if (isConfirmed) {
+            // 📍 확인되었을 때만 우리가 만든 '강력한 삭제' 로직 실행
+            handleDelete(logId);
+            setViewLog(null); // 모달 닫기
+        }
+    };
 
     // --- 2. 인증 핸들러 (회원가입 & 로그인) ---
     const handleAuth = async (e) => {
@@ -118,17 +162,56 @@ const Profile = () => {
     };
 
     // 📍 삭제 핸들러: logId로 정확한 삭제 요청 전송
-    const handleDelete = async (logId) => {
-        if (!logId || !window.confirm("이 소중한 기록을 삭제하시겠어요?")) return;
+    // const handleDelete = async (logId) => {
+    //     if (!logId || !window.confirm("이 소중한 기록을 삭제하시겠어요?")) return;
 
-        try {
-            await axios.delete(`http://localhost:8080/api/liplogs/${logId}`);
+    //     try {
+    //         await axios.delete(`http://localhost:8080/api/liplogs/${logId}`);
+    //         setMyLogs(prev => prev.filter(log => log.logId !== logId));
+    //         alert("기록이 깔끔하게 삭제되었습니다. 💄");
+    //     } catch (err) {
+    //         console.error("삭제 실패:", err);
+    //     }
+    // };
+// 📍 Profile.jsx 내부의 handleDelete 함수를 이렇게 수정해줘
+
+// Profile.jsx 내 handleDelete 함수 교정
+// Profile.jsx 163라인 부근
+const handleDelete = async (logId) => {
+    // 📍 [체크] 전달받는 값이 post.postId가 아니라 log.logId여야 합니다!
+    if (!logId || !window.confirm("이 기록을 삭제하면 립로그 탭의 게시글도 함께 사라집니다.")) return;
+
+    try {
+        console.log(`%c[원칙 집행] 삭제 시도 ID: ${logId}`, "color: #e67e22; font-weight: bold;");
+        const response = await axios.delete(`http://localhost:8080/api/liplogs/${logId}`);
+
+        if (response.status === 200) {
+            // UI 업데이트
             setMyLogs(prev => prev.filter(log => log.logId !== logId));
-            alert("기록이 깔끔하게 삭제되었습니다. 💄");
-        } catch (err) {
-            console.error("삭제 실패:", err);
+            setViewLog(null); 
+            alert("이미지와 관련 게시글이 모두 삭제되었습니다. ✨");
         }
-    };
+    } catch (err) {
+        // console.error("삭제 실패 상세:", err.response?.data || err.message);
+        console.error("삭제 실패: 혹시 게시글에서 사용 중인 사진인가요?", err.response?.data);
+        alert("삭제 실패: 서버 설정을 확인해 주세요.");
+    }
+};
+
+// Profile.jsx 내 삭제 핸들러 수정
+const handleDeleteLog = async (logId) => {
+    if (!window.confirm("정말 삭제하시겠습니까? 관련 게시글도 모두 삭제됩니다.")) return;
+    
+    try {
+        await axios.delete(`http://localhost:8080/api/liplogs/${logId}`);
+        alert("삭제되었습니다.");
+        // 📍 [핀셋] 삭제 후 즉시 서버 데이터를 다시 로드하여 화면 갱신
+        fetchMyLogs(); 
+    } catch (err) {
+        console.error("삭제 실패:", err);
+    }
+};
+
 
     // 📍 커뮤니티 공유 핸들러 교정
     // Profile.jsx 내부 핸들러 수정
@@ -257,52 +340,75 @@ const Profile = () => {
                 ) : myLogs.length > 0 ? (
 
                 // Profile.jsx 갤러리 렌더링 부분
-                <GalleryGrid>
-                    {myLogs.map((log) => (
-                        <GalleryItem key={log.logId} onClick={() => setViewLog(log)}> {/* 📍 logId로 고유 키 설정 */}
-                            <LogImage src={log.photoUrl} alt="Lip Log" />
+                // <GalleryGrid>
+                //     {myLogs.map((log) => (
+                //         <GalleryItem key={log.logId} onClick={() => setViewLog(log)}> {/* 📍 logId로 고유 키 설정 */}
+                //             <LogImage src={log.photoUrl} alt="Lip Log" />
                             
-                            <LogOverlay className="overlay">
-                                <div className="top-info">
-                                    {/* 1. 찍은 날짜 표시 */}
-                                    <span className="date">
-                                        {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Recent'}
-                                    </span>
+                //             <LogOverlay className="overlay">
+                //                 <div className="top-info">
+                //                     {/* 1. 찍은 날짜 표시 */}
+                //                     <span className="date">
+                //                         {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Recent'}
+                //                     </span>
                                     
-                                    {/* 2. 삭제 버튼 (logId 전달) */}
-                                    <DeleteBtn onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(log.logId); 
-                                    }}>
-                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </DeleteBtn>
-                                </div>
+                //                     {/* 2. 삭제 버튼 (logId 전달) */}
+                //                     <DeleteBtn onClick={(e) => {
+                //                         e.stopPropagation();
+                //                         handleDelete(log.logId); 
+                //                     }}>
+                //                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                //                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                //                         </svg>
+                //                     </DeleteBtn>
+                //                 </div>
 
-                                <div className="bottom-info">
-                                    {/* 사진 조회 정보 */}
-                                    <p className="product-info">{log.brandName} - {log.productName}</p>
-                                </div>
-                            </LogOverlay>
-                        </GalleryItem>
-                    ))}
-                </GalleryGrid>
-                    // <GalleryGrid>
-                    //     {myLogs.map((log) => (
-                    //         <GalleryItem key={log.id}>
-                    //             <img src={log.photoUrl || log.imageUrl} alt="Lip Log" />
-                    //             {log.isPublic && <PublicBadge>Public</PublicBadge>}
-                    //         </GalleryItem>
-                    //     ))}
-                    // </GalleryGrid>
+                //                 <div className="bottom-info">
+                //                     {/* 사진 조회 정보 */}
+                //                     <p className="product-info">{log.brandName} - {log.productName}</p>
+                //                 </div>
+                //             </LogOverlay>
+                //         </GalleryItem>
+                //     ))}
+                // </GalleryGrid>
+
+// Profile.jsx (195번 라인 근처)
+<GalleryGrid>
+    {myLogs && myLogs.length > 0 ? (
+        myLogs.map((log) => (
+            <GalleryItem 
+                key={log.logId} // 📍 고유한 logId를 key로 사용
+                onClick={() => setViewLog(log)}
+            >
+                <LogImage 
+                    // 📍 [핀셋] URL이 유효한지 확인하고, 없을 경우 기본 이미지 처리
+                    src={log.photoUrl || "/default-image.png"} 
+                    alt="Lip Log" 
+                    // 📍 공유 중인 사진은 시각적으로 구분하여 중복 선택 방지
+                    style={{ opacity: log.isPublic ? 0.5 : 1 }}
+                />
+                {log.isPublic && <div className="shared-badge">SHARED</div>}
+                
+                <LogOverlay className="overlay">
+                    <DeleteBtn onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteLog(log.logId);
+                    }}>삭제</DeleteBtn>
+                </LogOverlay>
+            </GalleryItem>
+        ))
+    ) : (
+        <EmptyMessage>저장된 룩이 없습니다.</EmptyMessage>
+    )}
+</GalleryGrid>
+
                 ) : (
                     <EmptyGalleryCard><p>아직 저장된 룩이 없습니다.</p></EmptyGalleryCard>
                 )}
             </ContentSection>
 
             {/* 📍 사진 상세 조회 및 다운로드 모달 */}
-            {viewLog && (
+            {/* {viewLog && (
                 <ModalOverlay onClick={() => setViewLog(null)}>
                     <DetailModalContent onClick={(e) => e.stopPropagation()}>
                         <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
@@ -313,7 +419,7 @@ const Profile = () => {
                                 <h4>{viewLog.brandName}</h4>
                                 <p>{viewLog.productName}</p>
                             </div>
-                            {/* 📍 다운로드 버튼: 브라우저 기본 다운로드 유도 */}
+
                             <DownloadLink 
                                 href={viewLog.photoUrl} 
                                 download={`ToutLip_${viewLog.logId}.png`}
@@ -323,7 +429,88 @@ const Profile = () => {
                         </ModalActionArea>
                     </DetailModalContent>
                 </ModalOverlay>
-            )}
+            )} */}
+
+            {viewLog && (
+    <ModalOverlay onClick={() => setViewLog(null)}>
+        <DetailModalContent onClick={(e) => e.stopPropagation()}>
+            <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
+            <DetailImage src={viewLog.photoUrl} alt="Detail View" />
+            
+            <ModalActionArea>
+                <div className="info">
+                    {/* 📍 날짜 추가: 브랜드명 위에 작고 연하게 배치하면 세련돼 보여 */}
+                    <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '4px' }}>
+                        {new Date(viewLog.createdAt).toLocaleDateString()}
+                    </p>
+                    <h4>{viewLog.brandName}</h4>
+                    <p>{viewLog.productName}</p>
+                </div>
+
+                {/* 📍 삭제 버튼 추가: 기존 SAVE IMAGE 버튼과 나란히 혹은 아래에 배치 */}
+
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+
+                    <button 
+                        className="delete-btn"
+                        onClick={() => handleDeleteWithConfirm(viewLog.logId)}
+                        style={{
+                            // 📍 '신중함'을 주는 디자인: 배경색 없이 테두리만 두어 '조심스러운' 느낌 강조
+                            background: 'transparent',
+                            border: '1.5px solid #ff4d4f',
+                            color: '#ff4d4f',
+                            /* 📍 [핀셋 추가] 요청하신 사이즈와 곡률 반영 */
+                            padding: '10px 18px',
+                            borderRadius: '8px',
+                            
+                            /* 📍 가독성을 위한 추가 설정 */
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        DELETE
+                    </button>
+
+                    <DownloadLink 
+                        href={viewLog.photoUrl} 
+                        download={`ToutLip_${viewLog.logId}.png`}
+                    >
+                        SAVE IMAGE
+                    </DownloadLink>
+
+                    {/* 📍 삭제 버튼: 우리가 완성한 그 '강력한 삭제' 함수를 연결해! */}
+                    {/* <button 
+                        className="delete-btn"
+                        onClick={() => {
+                            if(window.confirm("정말 삭제하시겠습니까? 연결된 게시글도 함께 삭제됩니다.")) {
+                                handleDelete(viewLog.logId); // 📍 기존 삭제 함수 호출
+                                setViewLog(null); // 모달 닫기
+                            }
+                        }}
+                        style={{
+                            background: 'none',
+                            border: '1px solid #ff4d4f',
+                            color: '#ff4d4f',
+                            padding: '6px 12px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            borderRadius: '4px'
+                        }}
+                    >
+                        DELETE
+                    </button> */}
+
+
+                </div>
+            </ModalActionArea>
+        </DetailModalContent>
+    </ModalOverlay>
+)}
+
+
         </ProfileContainer>
     );
 };
@@ -444,15 +631,36 @@ const GalleryGrid = styled.div`
     padding: 0 4px;
 `;
 
-const GalleryItem = styled.div`
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    overflow: hidden;
-    border-radius: 8px;
-    background-color: #111;
+// const GalleryItem = styled.div`
+//     position: relative;
+//     width: 100%;
+//     aspect-ratio: 1 / 1;
+//     overflow: hidden;
+//     border-radius: 8px;
+//     background-color: #111;
 
-    &:hover .overlay { opacity: 1; }
+//     &:hover .overlay { opacity: 1; }
+// `;
+
+// Profile.jsx 스타일 정의 부분 (Styled-components 예시)
+
+const GalleryItem = styled.div`
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 8px;
+  
+  /* 📍 [핀셋 추가] 마우스 오버 시 손가락 모양 커서로 변경 */
+  cursor: pointer; 
+  
+  /* 📍 추가 팁: 살짝 밝아지거나 확대되는 효과를 주면 더 생동감이 있어! */
+  transition: transform 0.2s ease-in-out;
+  
+  &:hover {
+    transform: scale(1.02); /* 살짝 커지는 효과 */
+    filter: brightness(1.1); /* 살짝 밝아지는 효과 */
+  }
 `;
 
 const LogOverlay = styled.div`
@@ -631,6 +839,16 @@ const ModalOverlay = styled.div`
   z-index: 999;
   backdrop-filter: blur(5px); /* 배경을 흐릿하게 만드는 효과 (선택 사항) */
   cursor: pointer; /* 배경 클릭 시 닫히는 느낌을 줄 때 */
+`;
+
+// Profile.jsx 하단 스타일 정의 구역에 추가
+const EmptyMessage = styled.p`
+    grid-column: 1 / -1;     /* 그리드 전체 칸을 차지하게 함 */
+    text-align: center;
+    color: #888;
+    padding: 60px 0;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
 `;
 
 export default Profile;

@@ -15,43 +15,62 @@ const PostForm = () => {
     const [currentSlide, setCurrentSlide] = useState(0);
 
     // 📍 1. 초기 데이터 로딩 (보관함 + 수정 데이터 불러오기)
-    useEffect(() => {
-        const userId = localStorage.getItem("userId");
-        
-        // 내 보관함 사진들 (하단 갤러리용)
-        axios.get(`http://localhost:8080/api/liplogs/user/${userId}`)
-            .then(res => setMyGalleryLogs(res.data))
-            .catch(err => console.error("보관함 로드 실패", err));
+// PostForm.jsx 내 useEffect 부분 교체
+useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    
+    // 1. 내 보관함 데이터 확인
+    axios.get(`http://localhost:8080/api/liplogs/user/${userId}`)
+        .then(res => {
+            console.log("=== 🏠 1. 내 보관함 데이터 로드 ===");
+            if (res.data.length > 0) {
+                console.log("보관함 첫 번째 사진 ID:", res.data[0].logId, " (타입:", typeof res.data[0].logId, ")");
+            }
+            setMyGalleryLogs(res.data);
+        })
+        .catch(err => console.error("보관함 로드 실패", err));
 
-        // 수정 모드일 때 기존 데이터 채우기
-        if (isEditMode && postId) {
-            // 백엔드 API 경로가 /api/liplogs/community/{postId} 인지 확인하세요!
-            axios.get(`http://localhost:8080/api/liplogs/community/${postId}`)
-                .then(res => {
-                    // 서버에서 받아온 데이터 구조에 맞춰 매핑
-                    // res.data 내부에 memo와 사진 목록(lipLogs)이 있다고 가정합니다.
-                    const { memo, lipLogs } = res.data;
+    // 2. 수정 게시글 데이터 확인
+    if (isEditMode && postId) {
+        axios.get(`http://localhost:8080/api/liplogs/community/${postId}`)
+            .then(res => {
+                console.log("=== 📝 2. 수정 대상 게시글 데이터 로드 ===");
+                console.log("서버 응답 원본:", res.data);
+                
+                const { memo, lipLogs } = res.data;
+                setMemo(memo || "");
+                
+                if (lipLogs && lipLogs.length > 0) {
+                    console.log("게시글 내 사진 객체 샘플:", lipLogs[0]);
                     
-                    // 1. 메모 글 불러오기
-                    setMemo(memo || "");
+                    // 📍 ID 매핑 과정 로그 출력
+                    const originalIds = lipLogs.map(log => {
+                        const targetId = log.originalLogId || log.logId;
+                        console.log(`ID 추출 중: originalLogId(${log.originalLogId}) | logId(${log.logId}) -> 최종선택: ${targetId}`);
+                        return Number(targetId);
+                    });
                     
-                    // 2. 기존 선택된 이미지 ID 목록 불러오기
-                    if (lipLogs && lipLogs.length > 0) {
-                        setSelectedLogIds(lipLogs.map(log => log.logId));
-                        
-                        // 3. 상단 슬라이드 미리보기 URL 목록 불러오기
-                        setPreviewUrls(lipLogs.map(log => log.photoUrl));
-                    }
-                })
-                .catch(err => {
-                    console.error("기존 게시글 로드 실패", err);
-                    alert("데이터를 불러오는 중 오류가 발생했습니다.");
-                });
-        }
-    }, [postId, isEditMode]);
+                    console.log("=> 💡 최종 세팅될 selectedLogIds:", originalIds);
+                    
+                    setSelectedLogIds(originalIds); 
+                    setPreviewUrls(lipLogs.map(log => log.photoUrl));
+                }
+            })
+            .catch(err => {
+                console.error("기존 게시글 로드 실패", err);
+                alert("데이터를 불러오는 중 오류가 발생했습니다.");
+            });
+    }
+}, [postId, isEditMode]);
 
     // 📍 2. 사진 선택 로직 (클릭 시 상단 슬라이드에 즉시 반영)
 const handleSelectPhoto = (log) => {
+
+    if (log.isPublic && !selectedLogIds.includes(log.logId)) {
+        alert("이 사진은 이미 다른 피드에 공유되었습니다. ✨ 한 장의 사진은 하나의 피드에만 소중하게 담아주세요!");
+        return;
+    }
+
     if (selectedLogIds.includes(log.logId)) {
         // 📍 이미 선택된 경우 제거 (토글 방식)
         const indexToRemove = selectedLogIds.indexOf(log.logId);
@@ -89,21 +108,31 @@ const handleSelectPhoto = (log) => {
 //         }
 //     };
 
-    // 📍 3. 저장 및 공유
-    const handleSave = async () => {
-        if (selectedLogIds.length === 0) return alert("사진을 선택해주세요!");
-        const dto = { logIds: selectedLogIds, memo: memo };
-        
-        try {
-            if (isEditMode) await axios.put(`http://localhost:8080/api/liplogs/community/${postId}`, dto);
-            else await axios.post('http://localhost:8080/api/liplogs/community', dto);
-            navigate('/liplog'); // 완료 후 뒤로 가기
-        } catch (err) {
-            alert("저장에 실패했습니다.");
-        }
+// PostForm.jsx 내 handleSave 함수 핀셋 수정
+const handleSave = async () => {
+    if (selectedLogIds.length === 0) return alert("사진을 선택해주세요!");
+    
+    // 📍 [핀셋 수정] 백엔드 DTO 구조에 맞춰 userId와 필드명 보강
+    const cleanLogIds = selectedLogIds.filter(id => id !== null && id !== undefined);
+    const dto = { 
+        logIds: selectedLogIds, 
+        memo: memo,
+        userId: localStorage.getItem("userId") // 👈 userId 누락 방지
     };
-
-
+    
+    try {
+        if (isEditMode) {
+            // 📍 경로 확인: /api/liplogs/community/${postId}
+            await axios.put(`http://localhost:8080/api/liplogs/community/${postId}`, dto);
+        } else {
+            await axios.post('http://localhost:8080/api/liplogs/community', dto);
+        }
+        navigate('/liplog'); 
+    } catch (err) {
+        console.error("저장 실패:", err.response?.data); // 상세 에러 로그 확인용
+        alert("저장에 실패했습니다.");
+    }
+};
 
 
 return (
@@ -182,14 +211,30 @@ return (
                 <div className="grid-header">보관함 사진 (최대 5장)</div>
                 <div className="grid-container">
                     {myGalleryLogs.map(log => (
+                        // <GridItem 
+                        //     key={log.logId} 
+                        //     onClick={() => handleSelectPhoto(log)}
+                        //     $isSelected={selectedLogIds.includes(log.logId)}
+                        // >
+                        //     <img src={log.photoUrl} alt="gallery" />
+                        //     {selectedLogIds.includes(log.logId) && (
+                        //         <div className="badge">{selectedLogIds.indexOf(log.logId) + 1}</div>
+                        //     )}
+                        // </GridItem>
                         <GridItem 
                             key={log.logId} 
                             onClick={() => handleSelectPhoto(log)}
-                            $isSelected={selectedLogIds.includes(log.logId)}
+                            // $isSelected={selectedLogIds.includes(log.logId)}
+                            $isSelected={selectedLogIds.includes(Number(log.logId))}
+                            $isPublic={log.isPublic} // 📍 공유 상태 전달
+                            style={{ opacity: log.isPublic && !selectedLogIds.includes(log.logId) ? 0.3 : 1 }} // 📍 시각적 차단
                         >
                             <img src={log.photoUrl} alt="gallery" />
-                            {selectedLogIds.includes(log.logId) && (
-                                <div className="badge">{selectedLogIds.indexOf(log.logId) + 1}</div>
+                            {log.isPublic && <div className="shared-badge">공유됨</div>} {/* 📍 텍스트 안내 */}
+                            {/* {selectedLogIds.includes(log.logId) && ( */}
+                            {selectedLogIds.includes(Number(log.logId)) && (
+                                // <div className="badge">{selectedLogIds.indexOf(log.logId) + 1}</div>
+                                <div className="badge">{selectedLogIds.indexOf(Number(log.logId)) + 1}</div>
                             )}
                         </GridItem>
                     ))}
