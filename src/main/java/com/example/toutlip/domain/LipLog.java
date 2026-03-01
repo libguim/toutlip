@@ -25,6 +25,7 @@ public class LipLog extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "community_post_id") // CommunityPost의 @JoinColumn 이름과 맞춰야 합니다.
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE) // ⭐ 핀셋 추가: 원본 삭제 시 게시글도 삭제
     @com.fasterxml.jackson.annotation.JsonIgnore // ⭐ 순환 참조 방지 (500 에러 해결의 핵심)
     private CommunityPost communityPost;
 

@@ -56,6 +56,7 @@ useEffect(() => {
         }
     };
 
+
     // --- 2. 인증 핸들러 (회원가입 & 로그인) ---
     const handleAuth = async (e) => {
         e.preventDefault();
