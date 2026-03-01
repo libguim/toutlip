@@ -25,12 +25,11 @@ public class CommunityPost extends BaseTimeEntity {
     String brandName;
     String productName;
 
-    @Builder.Default
     @OneToMany(
-            mappedBy = "communityPost", // 📍 연관 관계의 주인인 LipLog의 필드명을 지정
-            cascade = {CascadeType.PERSIST, CascadeType.MERGE}
+            mappedBy = "communityPost",
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE},
+            orphanRemoval = false
     )
-
     private List<LipLog> lipLogs = new ArrayList<>();
 
     @Builder.Default

@@ -20,6 +20,7 @@ const TryOn = () => {
     const selectedProductRef = useRef(null); // [핀셋 추가] 실시간 참조용
     const [isSaving, setIsSaving] = useState(false);
 
+
     useEffect(() => {
         selectedProductRef.current = selectedProduct;
     }, [selectedProduct]);

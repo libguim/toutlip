@@ -14,6 +14,7 @@ const PostForm = () => {
     const [myGalleryLogs, setMyGalleryLogs] = useState([]); // 하단 고정 갤러리 목록
     const [currentSlide, setCurrentSlide] = useState(0);
 
+
     // 📍 1. 초기 데이터 로딩 (보관함 + 수정 데이터 불러오기)
     useEffect(() => {
         const userId = localStorage.getItem("userId");

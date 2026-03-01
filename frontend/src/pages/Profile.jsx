@@ -12,6 +12,7 @@ const Profile = () => {
     const [viewLog, setViewLog] = useState(null); // 크게 보기 할 사진 데이터
     const [nickname, setNickname] = useState(localStorage.getItem("nickname") || "Toutlip");
 
+
     // --- 2. 인증 핸들러 (회원가입 & 로그인) ---
     const handleAuth = async (e) => {
         e.preventDefault();

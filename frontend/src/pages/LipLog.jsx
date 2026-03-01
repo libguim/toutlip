@@ -18,7 +18,6 @@ const LipLog = () => {
     const [isEditMode, setIsEditMode] = useState(false); // 수정 모드 여부
     const [editingPostId, setEditingPostId] = useState(null); // 수정 중인 게시글 ID
 
-
 // 📍 [수정] 피드 작성하기 버튼 클릭 시
 const handleCreateClick = () => {
     navigate('/liplog/new'); // App.js에 등록한 경로로 이동

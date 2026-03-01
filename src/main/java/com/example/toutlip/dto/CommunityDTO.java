@@ -42,5 +42,6 @@ public class CommunityDTO {
         private String createdAt;
 
         private List<LipLogDTO.LipLogResponseDTO> lipLogs;
+        private List<LipLogDTO.LipLogResponseDTO> images;
     }
 }

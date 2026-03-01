@@ -27,6 +27,7 @@ public class LipLogDTO {
     @Builder
     public static class LipLogResponseDTO { // 데이터 조회용
         private Integer logId;
+        private Integer originalLogId; // 📍 [최종 추가] 원본 보관함 ID 추적용
         private String brandName;
         private String productName;
         private String colorName;
