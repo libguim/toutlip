@@ -15,6 +15,7 @@ const Profile = () => {
     const [selectedLog, setSelectedLog] = useState(null);
     const [isEditMode, setIsEditMode] = useState(false); // 편집 모드 토글 상태
     const [selectedLogIds, setSelectedLogIds] = useState([]); // 선택된 사진 ID들
+    const [totalLikes, setTotalLikes] = useState(0); // 📍 [핀셋 추가] 전체 좋아요 합계
 
 
     // 📍 [핀셋 추가] 선택 토글 함수
@@ -66,6 +67,11 @@ const Profile = () => {
             const res = await axios.get(`http://localhost:8080/api/liplogs/user/${userId}`);
             // 📍 [대원칙 필터] 서버에서 필터링하지 않고 전체를 받아옵니다.
             setMyLogs(res.data);
+
+            if (Array.isArray(res.data)) {
+                const total = res.data.reduce((sum, log) => sum + (log.likeCount || 0), 0);
+                setTotalLikes(total);
+            }
         } catch (err) {
             console.error("로그 로딩 실패:", err);
         } finally {
@@ -76,6 +82,13 @@ const Profile = () => {
 // 페이지 로드 시 실행
 useEffect(() => {
     fetchMyLogs();
+
+    // 📍 [핀셋 추가] 사용자가 다른 앱을 보다 다시 TOUT LIP으로 돌아오면 자동 갱신
+    const handleFocus = () => fetchMyLogs();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => window.removeEventListener('focus', handleFocus);
+    
 }, [userId]);
 
 
@@ -148,31 +161,50 @@ useEffect(() => {
     };
 
     // --- 3. 데이터 로딩 (로그인 상태일 때 실행) ---
+    const fetchUserDataAndLogs = async () => {
+        const currentUserId = localStorage.getItem("userId");
+        if (!currentUserId || currentUserId === "null") return;
+
+        setLoading(true);
+        try {
+            // 📍 [핀셋] 백엔드 @RequestMapping("/api/liplogs")와 정확히 일치 (하이픈 제거)
+            const logRes = await axios.get(`http://localhost:8080/api/liplogs/user/${currentUserId}`);
+            
+            console.log("📥 보관함 수신 성공:", logRes.data);
+            
+            // 📍 [핀셋] 서버 응답 필드명이 logId임을 확인하고 데이터 세팅
+            // if (Array.isArray(logRes.data)) {
+            //     setMyLogs(logRes.data);
+            // }
+            if (Array.isArray(logRes.data)) {
+                setMyLogs(logRes.data);
+                
+                // 📍 [핀셋 추가] 내가 얻은 전체 좋아요 수 실시간 계산
+                const total = logRes.data.reduce((sum, log) => sum + (log.likeCount || 0), 0);
+                setTotalLikes(total);
+                console.log("✨ FAVORITES 최신화 완료:", total);
+            }
+        } catch (error) {
+            console.error("❌ 보관함 로딩 실패 (상태 코드):", error.response?.status);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (userId) {
-            // Profile.jsx 내부 fetchUserDataAndLogs 함수 핀셋 교정
-            const fetchUserDataAndLogs = async () => {
-                const currentUserId = localStorage.getItem("userId");
-                if (!currentUserId || currentUserId === "null") return;
-
-                setLoading(true);
-                try {
-                    // 📍 [핀셋] 백엔드 @RequestMapping("/api/liplogs")와 정확히 일치 (하이픈 제거)
-                    const logRes = await axios.get(`http://localhost:8080/api/liplogs/user/${currentUserId}`);
-                    
-                    console.log("📥 보관함 수신 성공:", logRes.data);
-                    
-                    // 📍 [핀셋] 서버 응답 필드명이 logId임을 확인하고 데이터 세팅
-                    if (Array.isArray(logRes.data)) {
-                        setMyLogs(logRes.data);
-                    }
-                } catch (error) {
-                    console.error("❌ 보관함 로딩 실패 (상태 코드):", error.response?.status);
-                } finally {
-                    setLoading(false);
-                }
-            };
             fetchUserDataAndLogs();
+
+            const handleRefresh = () => {
+                console.log("🔄 화면 이동 감지: FAVORITES 수치를 최신화합니다.");
+                fetchUserDataAndLogs();
+            };
+
+            window.addEventListener('focus', handleRefresh); // 창/탭 포커스 시 실행
+            return () => {
+                // 메모리 누수 방지를 위한 클린업
+                window.removeEventListener('focus', handleRefresh);
+            };
         }
     }, [userId]);
 
@@ -511,7 +543,7 @@ const handleDeleteLog = async (logId) => {
                         <div className="label">SHARED</div>
                     </StatItem>
                     <StatItem>
-                        <div className="count">24</div>
+                        <div className="count">{totalLikes}</div>
                         <div className="label">FAVORITES</div>
                     </StatItem>
                 </StatsContainer>

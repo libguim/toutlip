@@ -26,9 +26,18 @@ public class LipLogController {
     private final CommunityService communityService;
 
     // 커뮤니티 전체 피드 조회
+//    @GetMapping("/public")
+//    public ResponseEntity<List<CommunityDTO.CommunityPostResponseDTO>> getPublicLogs() {
+//        List<CommunityDTO.CommunityPostResponseDTO> logs = lipLogService.readPublicLogs();
+//        return ResponseEntity.ok(logs);
+//    }
     @GetMapping("/public")
-    public ResponseEntity<List<CommunityDTO.CommunityPostResponseDTO>> getPublicLogs() {
-        List<CommunityDTO.CommunityPostResponseDTO> logs = lipLogService.readPublicLogs();
+    public ResponseEntity<List<CommunityDTO.CommunityPostResponseDTO>> getPublicLogs(
+            @RequestParam(required = false) Integer userId) { // 📍 [핀셋 추가] 쿼리 파라미터로 userId를 받습니다.
+
+        // 📍 [핀셋 수정] 서비스 메서드에 userId를 전달하여 '좋아요 여부'를 판별하게 합니다.
+        List<CommunityDTO.CommunityPostResponseDTO> logs = lipLogService.readPublicLogs(userId);
+
         return ResponseEntity.ok(logs);
     }
 
@@ -51,26 +60,6 @@ public class LipLogController {
 
         return ResponseEntity.ok(lipLogService.updateLipLog(id, dto));
     }
-
-//    // LipLogController.java 에 추가
-//    // LipLogController.java 수정
-//    @PostMapping("/community")
-//    public ResponseEntity<?> createCommunityPost(@RequestBody CommunityDTO.CommunityPostRequestDTO dto) {
-//        // [수정 포인트] 사진 개수(logIds)가 3장 미만이거나 5장을 초과하는지 검증
-//        List<Integer> logIds = dto.getLogIds();
-//
-//        if (logIds == null || logIds.isEmpty() || logIds.size() > 5) {
-//            // 조건에 맞지 않으면 400 Bad Request와 함께 메시지 반환
-//            return ResponseEntity.badRequest()
-//                    .body(Map.of("message", "사진은 최소 1장에서 최대 5장까지 선택할 수 있습니다."));
-//        }
-//
-//        // 검증 통과 시 서비스 로직 호출
-//        lipLogService.createMultiPhotoPost(dto.getLogIds(), dto.getMemo());
-//        return ResponseEntity.status(HttpStatus.CREATED).build();
-//    }
-
-    // LipLogController.java 내 해당 메서드만 핀셋 수정
 
     @PostMapping("/community")
     public ResponseEntity<?> createCommunityPost(@RequestBody CommunityDTO.CommunityPostRequestDTO dto) {

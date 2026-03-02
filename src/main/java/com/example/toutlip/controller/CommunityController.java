@@ -12,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/community")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.PUT})
 public class CommunityController {
     private final CommunityService communityService;
 
@@ -31,9 +32,17 @@ public class CommunityController {
         return ResponseEntity.ok().build();
     }
 
+//    @PatchMapping("/{id}/like")
+//    public ResponseEntity<Void> updateLikeCount(@PathVariable Integer id) {
+////        communityService.incrementLikeCount(id); // 좋아요 증가
+//        return ResponseEntity.ok().build();
+//    }
+
     @PatchMapping("/{id}/like")
-    public ResponseEntity<Void> updateLikeCount(@PathVariable Integer id) {
-        communityService.incrementLikeCount(id); // 좋아요 증가
+    public ResponseEntity<Void> updateLikeCount(
+            @PathVariable Integer id,
+            @RequestParam Integer userId) { // 📍 userId 파라미터 추가
+        communityService.toggleLike(id, userId);
         return ResponseEntity.ok().build();
     }
 

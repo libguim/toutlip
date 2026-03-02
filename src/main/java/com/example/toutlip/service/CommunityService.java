@@ -1,11 +1,11 @@
 package com.example.toutlip.service;
 
-import com.example.toutlip.domain.CommunityPost;
-import com.example.toutlip.domain.LipLog;
-import com.example.toutlip.domain.PersonalColorType;
+import com.example.toutlip.domain.*;
 import com.example.toutlip.dto.CommunityDTO;
 import com.example.toutlip.repository.CommunityPostRepository;
 import com.example.toutlip.repository.LipLogRepository;
+import com.example.toutlip.repository.PostLikeRepository;
+import com.example.toutlip.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +23,8 @@ public class CommunityService {
     private final CommunityPostRepository communityPostRepository;
     private final ModelMapper modelMapper;
     private final LipLogRepository lipLogRepository;
+    private final UserRepository userRepository;         // 유저 정보를 찾기 위해 필요
+    private final PostLikeRepository postLikeRepository; // 좋아요 기록을 저장하기 위해 필요
 
     /**
      * 1. [Read] 인기순(조회수) 피드 조회
@@ -59,61 +62,49 @@ public class CommunityService {
     /**
      * 4. [Update] 좋아요 클릭 (추가 기능)
      */
-    public void incrementLikeCount(Integer id) {
-        CommunityPost post = communityPostRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+//    public void incrementLikeCount(Integer id) {
+//        CommunityPost post = communityPostRepository.findById(id)
+//                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+//
+//        post.setLikeCount(post.getLikeCount() + 1); //
+//    }
 
-        post.setLikeCount(post.getLikeCount() + 1); //
+    public void toggleLike(Integer postId, Integer userId) {
+        CommunityPost post = communityPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("게시글 없음"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("유저 없음"));
+
+        // 📍 [핀셋 핵심] 이미 해당 유저가 좋아요를 눌렀는지 확인
+//        Optional<PostLike> existingLike = postLikeRepository.findByUserAndCommunityPost(user, post);
+        Optional<PostLike> existingLike = postLikeRepository.findByUserIdAndCommunityPostId(userId, postId);
+
+        if (existingLike.isPresent()) {
+            // 이미 있다면 삭제 (좋아요 취소)
+            postLikeRepository.delete(existingLike.get());
+            int currentCount = (post.getLikeCount() == null) ? 0 : post.getLikeCount();
+            post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+        } else {
+//            // 없다면 새로 생성 (좋아요 추가)
+//            PostLike newLike = new PostLike();
+//            newLike.setUser(user);
+//            newLike.setCommunityPost(post);
+//            postLikeRepository.save(newLike);
+//            post.setLikeCount(post.getLikeCount() + 1);
+            // 📍 [핀셋 수정] 'new PostLike()' 대신 @Builder를 사용하여 protected 에러 해결
+            PostLike newLike = PostLike.builder()
+                    .user(user)
+                    .communityPost(post)
+                    .build();
+
+            postLikeRepository.save(newLike);
+
+            // null 방어 로직 추가: 기본값 0에서 증가
+            int currentCount = (post.getLikeCount() == null) ? 0 : post.getLikeCount();
+            post.setLikeCount(currentCount + 1);
+        }
     }
 
-    /**
-     * 5. [Delete] 게시글 삭제
-     */
-//    public void delete(Integer id) {
-//        if (!communityPostRepository.existsById(id)) {
-//            throw new IllegalArgumentException("삭제할 게시글이 없습니다.");
-//        }
-//        communityPostRepository.deleteById(id); //
-//    }
-
-
-//    @Transactional
-//    public void delete(Integer id) {
-//        // 1. 삭제할 게시글을 먼저 조회합니다.
-//        CommunityPost post = communityPostRepository.findById(id)
-//                .orElseThrow(() -> new IllegalArgumentException("삭제할 게시글이 없습니다."));
-//
-//        // 2. 📍 [핵심 핀셋] 연결된 사진(LipLog)들을 보관함용으로 되돌립니다.
-//        if (post.getLipLogs() != null) {
-//            post.getLipLogs().forEach(log -> {
-//                log.setCommunityPost(null); // 피드와의 연결 고리 제거
-//                log.setIsPublic(false);      // 다시 내 보관함 전용으로 변경
-//            });
-//
-//            // 리스트를 비워 관계를 완전히 정리합니다.
-//            post.getLipLogs().clear();
-//        }
-//
-//        // 3. 이제 게시글만 안전하게 삭제합니다.
-//        communityPostRepository.delete(post);
-//    }
-
-//    @Transactional
-//    public void delete(Integer id) {
-//        // 📍 1. 존재 여부를 먼저 확인하여 에러 발생 원천 차단
-//        CommunityPost post = communityPostRepository.findById(id).orElse(null);
-//        if (post == null) return; // 이미 없으면 조용히 종료
-//
-//        // 📍 2. 복제된 사진(LipLog) 처리
-//        // 우리는 이미 사진을 '복제'해서 사용하므로,
-//        // 원본을 되돌릴 필요 없이 이 게시글에 속한 '복사본'들만 같이 지워지게 두면 됩니다.
-//        // (CascadeType.ALL 또는 REMOVE 설정이 되어 있다면 자동으로 지워짐)
-//
-//        communityPostRepository.delete(post);
-//    }
-
-
-// CommunityService.java 내 delete 메서드 보강
     @Transactional
     public void delete(Integer id) {
         CommunityPost post = communityPostRepository.findById(id).orElse(null);
@@ -132,36 +123,6 @@ public class CommunityService {
         // flush를 통해 삭제 명령을 즉시 실행하여 유령 데이터 생성을 막습니다.
         communityPostRepository.flush();
     }
-
-
-
-    // CommunityService.java 내 delete 메서드 핀셋 교정
-// CommunityService.java 내 delete 메서드 최종 교정
-//    @Transactional
-//    public void delete(Integer id) {
-//        // 1. 삭제할 게시글 조회
-//        CommunityPost post = communityPostRepository.findById(id).orElse(null);
-//        if (post == null) return;
-//
-//        // 📍 [핀셋 핵심] 게시글에 묶인 '복제본' 사진들을 관계 끊기가 아닌 '물리 삭제'로 변경
-//        if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
-//            // 복제된 사진들(가지)을 리스트에서 하나씩 꺼내 명시적으로 삭제 명령
-//            // 이렇게 해야 lip_log 테이블에서도 해당 행이 완전히 사라집니다.
-//            post.getLipLogs().forEach(log -> {
-//                lipLogRepository.delete(log);
-//            });
-//            post.getLipLogs().clear();
-//        }
-//
-//        // 📍 [필수] 자식(사진) 삭제 쿼리를 DB에 즉시 꽂아넣어 제약 조건을 해제함
-//        lipLogRepository.flush();
-//
-//        // 2. 이제 장애물이 없으므로 껍데기(게시글)를 안전하게 삭제
-//        communityPostRepository.delete(post);
-//
-//        // 최종 반영 확정
-//        communityPostRepository.flush();
-//    }
 
     /**
      * 내부 헬퍼 메서드: 엔티티를 DTO로 변환
@@ -193,8 +154,6 @@ public class CommunityService {
 
         return dto;
     }
-
-    // CommunityService.java에 추가
 
     /**
      * [최종 빌드업] 게시글 수정: 모아나의 대원칙 반영
@@ -234,5 +193,8 @@ public class CommunityService {
         // 최종 상태 저장
         communityPostRepository.save(post);
     }
+
+
+
 
 }

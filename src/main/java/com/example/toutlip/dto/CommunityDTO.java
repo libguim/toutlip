@@ -38,7 +38,7 @@ public class CommunityDTO {
         private Integer viewCount;
         private Integer likeCount;
 
-        private boolean isLiked;
+        private boolean liked;
         private String createdAt;
 
         private List<LipLogDTO.LipLogResponseDTO> lipLogs;

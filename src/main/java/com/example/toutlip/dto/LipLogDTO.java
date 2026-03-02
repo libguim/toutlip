@@ -37,6 +37,7 @@ public class LipLogDTO {
         private Boolean isPublic;
         private LocalDateTime createdAt; // BaseTimeEntity에서 제공하는 생성 시각
         private String nickname;
+        private Integer likeCount;
     }
 
     // LipLogDTO.java 내부에 추가

@@ -6,10 +6,7 @@ import com.example.toutlip.domain.ProductColor;
 import com.example.toutlip.domain.User;
 import com.example.toutlip.dto.CommunityDTO;
 import com.example.toutlip.dto.LipLogDTO;
-import com.example.toutlip.repository.CommunityPostRepository;
-import com.example.toutlip.repository.LipLogRepository;
-import com.example.toutlip.repository.ProductColorRepository;
-import com.example.toutlip.repository.UserRepository;
+import com.example.toutlip.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -32,9 +29,10 @@ public class LipLogService {
     private final ModelMapper modelMapper;
     private final UserRepository userRepository;
     private final ProductColorRepository colorRepository;
+    private final PostLikeRepository postLikeRepository;
 
     @Transactional(readOnly = true)
-    public List<CommunityDTO.CommunityPostResponseDTO> readPublicLogs() {
+    public List<CommunityDTO.CommunityPostResponseDTO> readPublicLogs(Integer userId) {
         return communityPostRepository.findAll().stream()
                 // 1. 최신순 정렬
                 .sorted(Comparator.comparing(CommunityPost::getId).reversed())
@@ -45,6 +43,19 @@ public class LipLogService {
                     dto.setBrandName(post.getBrandName());
                     dto.setProductName(post.getProductName());
                     dto.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : "");
+
+                    // 📍 [핀셋 추가] DB에 저장된 실제 좋아요 수 반영
+                    long actualLikeCount = postLikeRepository.countByCommunityPostId(post.getId());
+                    dto.setLikeCount((int) actualLikeCount);
+
+                    // 📍 [핀셋 추가] 현재 로그인한 유저가 이 게시글에 좋아요를 눌렀는지 판별
+                    if (userId != null) {
+                        // PostLikeRepository를 사용하여 존재 여부 확인
+                        boolean isLiked = postLikeRepository.findByUserIdAndCommunityPostId(userId, post.getId()).isPresent();
+                        dto.setLiked(isLiked); // 프론트의 'liked' 필드와 매핑됨
+                    } else {
+                        dto.setLiked(false);
+                    }
 
                     if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
                         // 2. 연결된 사진(LipLog) 상세 매핑
@@ -159,84 +170,37 @@ public class LipLogService {
     }
 
     // [Read] 내 보관함 최신순 조회 (기존 로직 유지)
-    @Transactional(readOnly = true)
-    public List<LipLogDTO.LipLogResponseDTO> readMyLogs(Integer userId) {
-        // 📍 [핀셋] 복제본(isPublic=true)은 제외하고 오직 '원본'만 가져와 갤러리 중복을 막습니다.
-        return lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-//                .filter(log -> !log.getIsPublic())
-//                .filter(log -> log.getIsPublic() != null && !log.getIsPublic())
-                .map(this::convertToResponseDTO)
-                .collect(Collectors.toList());
-    }
-
 //    @Transactional(readOnly = true)
 //    public List<LipLogDTO.LipLogResponseDTO> readMyLogs(Integer userId) {
-//        // 📍 [핀셋 교정] 모든 로그가 아니라, 공용 피드용이 아닌(원본) 사진만 필터링해서 가져옴
-//        List<LipLog> logs = lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-//                .filter(log -> !log.getIsPublic()) // 📍 이 한 줄로 중복 노출 방지!
-//                .collect(Collectors.toList());
-//
-//        return logs.stream()
+//        // 📍 [핀셋] 복제본(isPublic=true)은 제외하고 오직 '원본'만 가져와 갤러리 중복을 막습니다.
+//        return lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+////                .filter(log -> !log.getIsPublic())
+////                .filter(log -> log.getIsPublic() != null && !log.getIsPublic())
 //                .map(this::convertToResponseDTO)
 //                .collect(Collectors.toList());
 //    }
+    @Transactional(readOnly = true)
+    public List<LipLogDTO.LipLogResponseDTO> readMyLogs(Integer userId) {
+        // 📍 [핀셋] 내 ID로 등록된 모든 로그를 가져옵니다.
+        return lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(log -> {
+                    // 1. 기본 DTO 변환 (기존 convertToResponseDTO 활용)
+                    LipLogDTO.LipLogResponseDTO dto = convertToResponseDTO(log);
 
-//    @Transactional
-//    public void createMultiPhotoPost(List<Integer> logIds, String memo) {
-//        // 1. 보관함 원본 사진 조회 (단순 조회이므로 원본은 변하지 않음)
-//        List<LipLog> selectedLogs = lipLogRepository.findAllById(logIds);
-//
-//        // 2. 게시글 기본 정보 추출 (기존 로직 유지)
-//        String brand = "";
-//        String product = "";
-//        if (!selectedLogs.isEmpty()) {
-//            LipLog firstLog = selectedLogs.get(0);
-//            if (firstLog.getProductColor() != null && firstLog.getProductColor().getProduct() != null) {
-//                brand = firstLog.getProductColor().getProduct().getBrand().getName();
-//                product = firstLog.getProductColor().getProduct().getName();
-//            }
-//        }
-//
-//        // 3. 새 게시글 생성
-//        CommunityPost post = CommunityPost.builder()
-//                .memo(memo)
-//                .brandName(brand)
-//                .productName(product)
-//                .build();
-//
-//        // 4. 📍 [진짜 핀셋] 보관함 원본은 절대 건드리지 않고, '피드 전용 복사본' 객체들만 새로 만듦
-//        List<LipLog> feedLogs = selectedLogs.stream().map(original -> {
-//            return LipLog.builder()
-//                    .user(original.getUser())
-//                    .productColor(original.getProductColor())
-//                    .photoUrl(original.getPhotoUrl()) // 동일한 이미지 주소만 사용
-//                    .memo(original.getMemo())
-//                    .isPublic(true)                   // 피드용이므로 true
-//                    .communityPost(post)              // 새 게시글에만 연결 (원본의 연결은 유지됨)
-//                    .build();
-//        }).collect(Collectors.toList());
-//
-//        // 5. 게시글에 이 복사본 사진들만 담아서 저장
-//        post.setLipLogs(feedLogs);
-//        communityPostRepository.save(post);
-//    }
+                    // 2. 📍 [핀셋 핵심 수정]
+                    // 이 사진이 게시글(CommunityPost)에 연결되어 있다면,
+                    // 게시글 엔티티의 컬럼값이 아닌 PostLike 테이블의 행 개수를 직접 셉니다.
+                    if (log.getCommunityPost() != null) {
+                        long actualLikeCount = postLikeRepository.countByCommunityPostId(log.getCommunityPost().getId());
+                        dto.setLikeCount((int) actualLikeCount);
+                    } else {
+                        dto.setLikeCount(0); // 게시글이 없으면 좋아요는 0개
+                    }
 
-
-    // LipLogService.java
-//    @Transactional
-//    public void createMultiPhotoPost(List<Integer> logIds, String memo) {
-//        CommunityPost post = CommunityPost.builder().memo(memo).build();
-//        CommunityPost savedPost = communityPostRepository.save(post);
-//
-//        // 📍 [대전환] 복제 없이 기존 사진들을 게시글에 '연결'
-//        List<LipLog> selectedLogs = lipLogRepository.findAllById(logIds);
-//        for (LipLog log : selectedLogs) {
-//            log.setIsPublic(true);
-//            log.setCommunityPost(savedPost);
-//        }
-//    }
-
-    // LipLogService.java
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
 
     @Transactional
     public void createMultiPhotoPost(CommunityDTO.CommunityPostRequestDTO dto) { // 📍 매개변수를 DTO로 변경
