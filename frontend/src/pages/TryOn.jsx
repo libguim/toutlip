@@ -19,7 +19,42 @@ const TryOn = () => {
     const cameraRef = useRef(null);
     const selectedProductRef = useRef(null); // [핀셋 추가] 실시간 참조용
     const [isSaving, setIsSaving] = useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [capturedImgForConfirm, setCapturedImgForConfirm] = useState(null);
+    const [modalMessage, setModalMessage] = useState("");
 
+    const handleSaveClick = () => {
+    setIsConfirmOpen(true); // 바로 저장하지 않고 팝업을 띄움
+    };
+
+    const closeConfirmModal = () => {
+        setIsConfirmOpen(false);
+        setCapturedImgForConfirm(null);
+    };
+
+    const confirmSave = async () => {
+        if (isSaving || !capturedImgForConfirm || !selectedProduct) return;
+        setIsSaving(true);
+        try {
+            const response = await axios.post('http://localhost:8080/api/try-on/save', {
+                userId: Number(localStorage.getItem("userId")),
+                colorId: selectedProduct.id, 
+                photoUrl: capturedImgForConfirm,
+                isPublic: false,
+                memo: `${selectedProduct.brandName || selectedProduct.brand} 시착 샷`
+            });
+            // alert("보관함에 저장되었습니다! ✨");
+            // closeConfirmModal();
+            setModalMessage("보관함에 예쁘게 저장되었습니다! ✨");
+            setCapturedImgForConfirm(null); // 저장 성공 시 이미지만 제거하여 알림창으로 전환
+        } catch (error) {
+            // console.error("저장 실패:", error);
+            // alert("저장에 실패했습니다.");
+            setModalMessage("저장에 실패했습니다. 다시 시도해 주세요.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     useEffect(() => {
         selectedProductRef.current = selectedProduct;
@@ -80,6 +115,11 @@ const TryOn = () => {
                     console.log(`3. ${firstBrand} 컬러 데이터 수신 결과:`, colorRes.data);
 
                     if (colorRes.data && colorRes.data.length > 0) {
+                        const enrichedData = colorRes.data.map(product => ({
+                            ...product,
+                            // 📍 [핀셋] 서버 데이터에 brandName이 없으면 현재 선택된 브랜드명을 주입
+                            brandName: product.brandName || firstBrand 
+                        }));
                         setProducts(colorRes.data);
                         setSelectedProduct(colorRes.data[0]);
                         console.log("✅ 데이터 로드 성공!");
@@ -205,28 +245,38 @@ const TryOn = () => {
         console.log("📸 [저장 시도] 데이터 확인:", currentProduct);
 
         if (!currentProduct) {
-            alert("컬러를 먼저 선택해 주세요! ✨");
+            // alert("컬러를 먼저 선택해 주세요! ✨");
+            setModalMessage("컬러를 먼저 선택해 주세요! ✨"); 
+            setIsConfirmOpen(true);
             return;
         }
 
         const canvas = canvasRef.current;
+        if (!canvas) {
+            alert("카메라 화면을 불러올 수 없습니다.");
+            return;
+        }
+
         const imageData = canvas.toDataURL("image/png");
 
-        try {
-            const response = await axios.post('http://localhost:8080/api/try-on/save', {
-                userId: Number(localStorage.getItem("userId")),
-                colorId: currentProduct.id, 
-                photoUrl: imageData,
-                isPublic: false,
-                memo: `${currentProduct.brandName || currentProduct.brand} 시착 샷`
-            });
-            console.log("✅ 저장 성공 응답:", response.data);
-            alert("보관함에 저장되었습니다! ✨");
-        } catch (error) {
-            // [디버깅] 서버 에러 메시지 상세 출력
-            console.error("❌ 저장 실패 사유:", error.response?.data || error.message);
-            alert("저장에 실패했습니다. 콘솔을 확인해 주세요.");
-        }
+        setCapturedImgForConfirm(imageData);
+        setIsConfirmOpen(true);
+
+        // try {
+        //     const response = await axios.post('http://localhost:8080/api/try-on/save', {
+        //         userId: Number(localStorage.getItem("userId")),
+        //         colorId: currentProduct.id, 
+        //         photoUrl: imageData,
+        //         isPublic: false,
+        //         memo: `${currentProduct.brandName || currentProduct.brand} 시착 샷`
+        //     });
+        //     console.log("✅ 저장 성공 응답:", response.data);
+        //     alert("보관함에 저장되었습니다! ✨");
+        // } catch (error) {
+        //     // [디버깅] 서버 에러 메시지 상세 출력
+        //     console.error("❌ 저장 실패 사유:", error.response?.data || error.message);
+        //     alert("저장에 실패했습니다. 콘솔을 확인해 주세요.");
+        // }
     };    
 
     const handleSyncData = async () => {
@@ -273,7 +323,15 @@ const TryOn = () => {
             // [교정] 컨트롤러의 @GetMapping("/colors/brand/{brandName}") 구조와 일치시킴
             const url = `http://localhost:8080/api/products/colors/brand/${brandName}`;
             const res = await axios.get(url);
-            setProducts(res.data);
+            const enrichedData = res.data.map(product => ({
+                ...product,
+                brandName: brandName 
+            }));
+            setProducts(enrichedData);
+            if (enrichedData.length > 0) {
+                setSelectedProduct(enrichedData[0]); // 브랜드 변경 시 첫 번째 제품 자동 선택
+            }
+            // setProducts(res.data);
             // if (res.data && res.data.length > 0) {
             //     setSelectedProduct(res.data[0]);
             // }
@@ -305,10 +363,56 @@ const TryOn = () => {
                     <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
                     <StyledCanvas ref={canvasRef} width={640} height={480} />
                     <LuxuryFrame />
-                    <CaptureButton onClick={handleCapture}>
+                    <CaptureButton className="sc-dhKdcy EloMc" onClick={handleCapture}>
                         <div className="inner-dot" />
                     </CaptureButton>
                 </CameraSection>
+
+                {/* 📍 [추가 지점] CameraSection 바로 아래, ContentWrapper가 끝나기 전 */}
+                {isConfirmOpen && (
+                    <ModalOverlay onClick={closeConfirmModal}>
+                        <ModalContent onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                {/* <h3>Save your Radiance?</h3>
+                                <p>촬영한 시착 사진을 보관함에 저장하시겠습니까?</p> */}
+                                {/* <h3>{capturedImgForConfirm ? "Save your Radiance?" : "TOUT LIP Notice"}</h3>
+                                <p>{capturedImgForConfirm ? "촬영한 시착 사진을 보관함에 저장하시겠습니까?" : modalMessage}</p> */}
+                                <h3>{capturedImgForConfirm ? "Save your Radiance?" : "TOUT LIP Notice"}</h3>
+                                <p>{modalMessage || "촬영한 시착 사진을 보관함에 저장하시겠습니까?"}</p>
+                            </div>
+
+                            {/* 사진이 있을 때만 프리뷰 노출 */}
+                            {capturedImgForConfirm && (
+                                <div className="preview-container" style={{ position: 'relative', marginBottom: '20px' }}>
+                                    <img src={capturedImgForConfirm} alt="Captured Look" style={{ width: '100%', borderRadius: '12px' }} />
+                                    {/* <LuxuryFrame /> */}
+                                </div>
+                            )}
+
+                            {/* <div className="modal-actions">
+                                <button className="btn-cancel" onClick={closeConfirmModal} disabled={isSaving}>
+                                    취소
+                                </button>
+                                <button className="btn-save" onClick={confirmSave} disabled={isSaving}>
+                                    {isSaving ? '저장 중...' : '저장하기'}
+                                </button>
+                            </div> */}
+
+                            <div className="modal-actions">
+                                {capturedImgForConfirm ? (
+                                    <>
+                                        <button className="btn-cancel" onClick={closeConfirmModal} disabled={isSaving}>취소</button>
+                                        <button className="btn-save" onClick={confirmSave} disabled={isSaving}>
+                                            {isSaving ? '저장 중...' : '저장하기'}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button className="btn-save" onClick={closeConfirmModal}>확인</button>
+                                )}
+                            </div>
+                        </ModalContent>
+                    </ModalOverlay>
+                )}
 
                 <SelectionPanel>
                     {/* 1. 필터 섹션: 브랜드 선택 및 텍스처 버튼 */}
@@ -359,12 +463,18 @@ const TryOn = () => {
                     {/* 2. 제품 상세 정보: 선택된 제품이 있을 때만 표시 */}
                     {selectedProduct && (
                         <ProductDetailInfo>
-                            <div className="info-main">
+                            {/* <div className="info-main">
                                 <h3>{selectedProduct.name}</h3>
+                            </div> */}
+                            <div className="info-main">
+                                {/* 📍 [핀셋] 객체 구조에 따라 name 또는 colorName을 참조 */}
+                                <h3>{selectedProduct.name || selectedProduct.colorName || "New Shade"}</h3>
                             </div>
+                            {/* <p className="brand-name">
+                                {(selectedProduct?.brandName || selectedProduct?.brand || currentBrand || 'TOUT LIP').toUpperCase()} - SELECTED LOOK
+                            </p> */}
                             <p className="brand-name">
-                                {/* {selectedProduct.brandName || selectedProduct.brand} - SELECTED LOOK */}
-                                {(selectedProduct?.brandName || selectedProduct?.brand || currentBrand) || ''} - SELECTED LOOK
+                                {(selectedProduct?.brandName || currentBrand).toUpperCase()}
                             </p>
                         </ProductDetailInfo>
                     )}
@@ -772,6 +882,54 @@ const LoadingText = styled.p`
     margin: 0;
     font-family: 'serif'; /* 로고와 통일감을 주는 세리프 스타일 */
     opacity: 0.8;
+`;
+
+const ModalOverlay = styled.div`
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.8); display: flex; 
+    justify-content: center; align-items: center; z-index: 9999;
+`;
+
+const ModalContent = styled.div`
+    background: #121212; // 더 깊은 블랙
+    padding: 30px;
+    border-radius: 28px; // 카드 디자인과 일치하는 둥근 모서리
+    border: 1px solid #222;
+    width: 85%;
+    max-width: 360px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(209, 186, 148, 0.1);
+
+    h3 { 
+        color: #D1BA94; 
+        font-family: 'serif'; 
+        font-size: 1.3rem; 
+        letter-spacing: 1px;
+        margin-bottom: 10px; 
+    }
+    
+    p { 
+        color: #efefef; 
+        font-size: 0.9rem; 
+        margin-bottom: 25px; 
+        line-height: 1.5;
+        word-break: keep-all;
+    }
+
+    .modal-actions {
+        display: flex; gap: 12px;
+        button { 
+            flex: 1; padding: 14px; border-radius: 14px; 
+            font-size: 0.9rem; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-save { 
+            background: linear-gradient(135deg, #D1BA94 0%, #EBD8B7 100%); 
+            color: #121212; border: none;
+        }
+        .btn-cancel { 
+            background: #222; color: #888; border: 1px solid #333;
+        }
+    }
 `;
 
 export default TryOn;
