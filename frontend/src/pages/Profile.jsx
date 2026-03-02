@@ -13,22 +13,65 @@ const Profile = () => {
     const [nickname, setNickname] = useState(localStorage.getItem("nickname") || "Toutlip");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState(null);
+    const [isEditMode, setIsEditMode] = useState(false); // 편집 모드 토글 상태
+    const [selectedLogIds, setSelectedLogIds] = useState([]); // 선택된 사진 ID들
 
 
-// Profile.jsx 상단 상태 정의 아래에 추가
-const fetchMyLogs = async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
-        const res = await axios.get(`http://localhost:8080/api/liplogs/user/${userId}`);
-        // 📍 [대원칙 필터] 서버에서 필터링하지 않고 전체를 받아옵니다.
-        setMyLogs(res.data);
-    } catch (err) {
-        console.error("로그 로딩 실패:", err);
-    } finally {
-        setLoading(false);
-    }
-};
+    // 📍 [핀셋 추가] 선택 토글 함수
+    const toggleSelectLog = (logId) => {
+        setSelectedLogIds(prev => 
+            prev.includes(logId) 
+                ? prev.filter(id => id !== logId) 
+                : [...prev, logId]
+        );
+    };
+
+    // 📍 [핀셋 추가] 전체 선택/해제
+    const toggleSelectAll = () => {
+        if (selectedLogIds.length === myLogs.length) {
+            setSelectedLogIds([]);
+        } else {
+            setSelectedLogIds(myLogs.map(log => log.logId));
+        }
+    };
+
+    // 📍 [핀셋 추가] 일괄 삭제 실행
+    const handleDeleteSelected = async () => {
+        if (selectedLogIds.length === 0) return;
+        if (!window.confirm(`선택한 ${selectedLogIds.length}개의 기록을 모두 삭제할까요?`)) return;
+
+        setLoading(true);
+        try {
+            // 병렬 삭제 처리
+            await Promise.all(
+                selectedLogIds.map(id => axios.delete(`http://localhost:8080/api/liplogs/${id}`))
+            );
+            alert("선택한 기록들이 모두 삭제되었습니다. ✨");
+            setSelectedLogIds([]);
+            setIsEditMode(false);
+            fetchMyLogs(); // 목록 갱신
+        } catch (err) {
+            console.error("일괄 삭제 실패:", err);
+            alert("일부 항목 삭제 중 에러가 발생했습니다.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Profile.jsx 상단 상태 정의 아래에 추가
+    const fetchMyLogs = async () => {
+        if (!userId) return;
+        setLoading(true);
+        try {
+            const res = await axios.get(`http://localhost:8080/api/liplogs/user/${userId}`);
+            // 📍 [대원칙 필터] 서버에서 필터링하지 않고 전체를 받아옵니다.
+            setMyLogs(res.data);
+        } catch (err) {
+            console.error("로그 로딩 실패:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
 // 페이지 로드 시 실행
 useEffect(() => {
@@ -334,103 +377,96 @@ const handleDeleteLog = async (logId) => {
                 </StatItem>
             </StatsContainer>
 
-            <ContentSection>
+            {/* <ContentSection>
                 <SectionTitle><GridIcon /> MY GALLERY</SectionTitle>
                 {loading ? (
                     <LoadingTextSmall>Loading your looks...</LoadingTextSmall>
                 ) : myLogs.length > 0 ? (
 
-                // Profile.jsx 갤러리 렌더링 부분
-                // <GalleryGrid>
-                //     {myLogs.map((log) => (
-                //         <GalleryItem key={log.logId} onClick={() => setViewLog(log)}> {/* 📍 logId로 고유 키 설정 */}
-                //             <LogImage src={log.photoUrl} alt="Lip Log" />
-                            
-                //             <LogOverlay className="overlay">
-                //                 <div className="top-info">
-                //                     {/* 1. 찍은 날짜 표시 */}
-                //                     <span className="date">
-                //                         {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Recent'}
-                //                     </span>
-                                    
-                //                     {/* 2. 삭제 버튼 (logId 전달) */}
-                //                     <DeleteBtn onClick={(e) => {
-                //                         e.stopPropagation();
-                //                         handleDelete(log.logId); 
-                //                     }}>
-                //                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                //                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                //                         </svg>
-                //                     </DeleteBtn>
-                //                 </div>
-
-                //                 <div className="bottom-info">
-                //                     {/* 사진 조회 정보 */}
-                //                     <p className="product-info">{log.brandName} - {log.productName}</p>
-                //                 </div>
-                //             </LogOverlay>
-                //         </GalleryItem>
-                //     ))}
-                // </GalleryGrid>
-
-// Profile.jsx (195번 라인 근처)
-<GalleryGrid>
-    {myLogs && myLogs.length > 0 ? (
-        myLogs.map((log) => (
-            <GalleryItem 
-                key={log.logId} // 📍 고유한 logId를 key로 사용
-                onClick={() => setViewLog(log)}
-            >
-                <LogImage 
-                    // 📍 [핀셋] URL이 유효한지 확인하고, 없을 경우 기본 이미지 처리
-                    src={log.photoUrl || "/default-image.png"} 
-                    alt="Lip Log" 
-                    // 📍 공유 중인 사진은 시각적으로 구분하여 중복 선택 방지
-                    style={{ opacity: log.isPublic ? 0.5 : 1 }}
-                />
-                {log.isPublic && <div className="shared-badge">SHARED</div>}
-                
-                <LogOverlay className="overlay">
-                    <DeleteBtn onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteLog(log.logId);
-                    }}>삭제</DeleteBtn>
-                </LogOverlay>
-            </GalleryItem>
-        ))
-    ) : (
-        <EmptyMessage>저장된 룩이 없습니다.</EmptyMessage>
-    )}
-</GalleryGrid>
+                <GalleryGrid>
+                    {myLogs && myLogs.length > 0 ? (
+                        myLogs.map((log) => (
+                            <GalleryItem 
+                                key={log.logId} // 📍 고유한 logId를 key로 사용
+                                onClick={() => setViewLog(log)}
+                            >
+                                <LogImage 
+                                    // 📍 [핀셋] URL이 유효한지 확인하고, 없을 경우 기본 이미지 처리
+                                    src={log.photoUrl || "/default-image.png"} 
+                                    alt="Lip Log" 
+                                    // 📍 공유 중인 사진은 시각적으로 구분하여 중복 선택 방지
+                                    style={{ opacity: log.isPublic ? 0.5 : 1 }}
+                                />
+                                {log.isPublic && <div className="shared-badge">SHARED</div>}
+                                
+                                <LogOverlay className="overlay">
+                                    <DeleteBtn onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteLog(log.logId);
+                                    }}>삭제</DeleteBtn>
+                                </LogOverlay>
+                            </GalleryItem>
+                        ))
+                    ) : (
+                        <EmptyMessage>저장된 룩이 없습니다.</EmptyMessage>
+                    )}
+                </GalleryGrid>
 
                 ) : (
                     <EmptyGalleryCard><p>아직 저장된 룩이 없습니다.</p></EmptyGalleryCard>
                 )}
+            </ContentSection> */}
+
+            <ContentSection>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <SectionTitle style={{ margin: 0 }}><GridIcon /> MY GALLERY</SectionTitle>
+                    <button 
+                        onClick={() => { setIsEditMode(!isEditMode); setSelectedLogIds([]); }}
+                        style={{ background: 'none', border: 'none', color: '#D1BA94', fontSize: '0.8rem', cursor: 'pointer' }}
+                    >
+                        {isEditMode ? 'CANCEL' : 'EDIT'}
+                    </button>
+                </div>
+
+                {/* 📍 [핀셋 추가] 편집 모드 상단 바 (image_511ad6.png 컨셉) */}
+                {isEditMode && (
+                    <EditActionBar>
+                        <div className="left" onClick={toggleSelectAll}>
+                            <div className={`checkbox ${selectedLogIds.length === myLogs.length ? 'checked' : ''}`} />
+                            <span>ALL ({selectedLogIds.length})</span>
+                        </div>
+                        <button className="delete-btn" onClick={handleDeleteSelected} disabled={selectedLogIds.length === 0}>
+                            DELETE SELECTED
+                        </button>
+                    </EditActionBar>
+                )}
+
+                {loading ? (
+                    <LoadingTextSmall>Loading your looks...</LoadingTextSmall>
+                ) : (
+                    <GalleryGrid>
+                        {myLogs.map((log) => (
+                            <GalleryItem 
+                                key={log.logId}
+                                $isSelected={selectedLogIds.includes(log.logId)}
+                                onClick={() => isEditMode ? toggleSelectLog(log.logId) : setViewLog(log)}
+                            >
+                                <LogImage src={log.photoUrl} alt="Lip Log" />
+                                
+                                {/* 📍 [핀셋 추가] 선택 모드 시 체크박스 노출 */}
+                                {isEditMode && (
+                                    <div className={`select-indicator ${selectedLogIds.includes(log.logId) ? 'checked' : ''}`}>
+                                        {selectedLogIds.includes(log.logId) && '✓'}
+                                    </div>
+                                )}
+                                
+                                {log.isPublic && <div className="shared-badge">SHARED</div>}
+                            </GalleryItem>
+                        ))}
+                    </GalleryGrid>
+                )}
             </ContentSection>
 
-            {/* 📍 사진 상세 조회 및 다운로드 모달 */}
-            {/* {viewLog && (
-                <ModalOverlay onClick={() => setViewLog(null)}>
-                    <DetailModalContent onClick={(e) => e.stopPropagation()}>
-                        <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
-                        <DetailImage src={viewLog.photoUrl} alt="Detail View" />
-                        
-                        <ModalActionArea>
-                            <div className="info">
-                                <h4>{viewLog.brandName}</h4>
-                                <p>{viewLog.productName}</p>
-                            </div>
-
-                            <DownloadLink 
-                                href={viewLog.photoUrl} 
-                                download={`ToutLip_${viewLog.logId}.png`}
-                            >
-                                SAVE IMAGE
-                            </DownloadLink>
-                        </ModalActionArea>
-                    </DetailModalContent>
-                </ModalOverlay>
-            )} */}
 
             {viewLog && (
     <ModalOverlay onClick={() => setViewLog(null)}>
@@ -647,24 +683,24 @@ const GalleryGrid = styled.div`
 
 // Profile.jsx 스타일 정의 부분 (Styled-components 예시)
 
-const GalleryItem = styled.div`
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  border-radius: 8px;
+// const GalleryItem = styled.div`
+//   position: relative;
+//   width: 100%;
+//   aspect-ratio: 1 / 1;
+//   overflow: hidden;
+//   border-radius: 8px;
   
-  /* 📍 [핀셋 추가] 마우스 오버 시 손가락 모양 커서로 변경 */
-  cursor: pointer; 
+//   /* 📍 [핀셋 추가] 마우스 오버 시 손가락 모양 커서로 변경 */
+//   cursor: pointer; 
   
-  /* 📍 추가 팁: 살짝 밝아지거나 확대되는 효과를 주면 더 생동감이 있어! */
-  transition: transform 0.2s ease-in-out;
+//   /* 📍 추가 팁: 살짝 밝아지거나 확대되는 효과를 주면 더 생동감이 있어! */
+//   transition: transform 0.2s ease-in-out;
   
-  &:hover {
-    transform: scale(1.02); /* 살짝 커지는 효과 */
-    filter: brightness(1.1); /* 살짝 밝아지는 효과 */
-  }
-`;
+//   &:hover {
+//     transform: scale(1.02); /* 살짝 커지는 효과 */
+//     filter: brightness(1.1); /* 살짝 밝아지는 효과 */
+//   }
+// `;
 
 const LogOverlay = styled.div`
     position: absolute;
@@ -852,6 +888,53 @@ const EmptyMessage = styled.p`
     padding: 60px 0;
     font-size: 0.9rem;
     letter-spacing: 1px;
+`;
+
+const EditActionBar = styled.div`
+    background: rgba(209, 186, 148, 0.1);
+    border: 1px solid rgba(209, 186, 148, 0.2);
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .left {
+        display: flex; align-items: center; gap: 8px; cursor: pointer;
+        span { color: #D1BA94; font-size: 0.8rem; font-weight: 600; }
+    }
+
+    .checkbox {
+        width: 18px; height: 18px; border: 1.5px solid #D1BA94; border-radius: 4px;
+        &.checked { background: #D1BA94; }
+    }
+
+    .delete-btn {
+        background: #ff4d4f; color: #fff; border: none; padding: 6px 12px;
+        border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer;
+        &:disabled { opacity: 0.4; cursor: not-allowed; }
+    }
+`;
+
+// GalleryItem 수정 (Styled-components)
+const GalleryItem = styled.div`
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: ${props => props.$isSelected ? '2.5px solid #D1BA94' : 'none'};
+    transition: all 0.2s;
+
+    .select-indicator {
+        position: absolute; top: 8px; left: 8px;
+        width: 20px; height: 20px; border-radius: 50%;
+        background: rgba(0,0,0,0.5); border: 1.5px solid #fff;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 12px;
+        &.checked { background: #D1BA94; border-color: #D1BA94; }
+    }
 `;
 
 export default Profile;
