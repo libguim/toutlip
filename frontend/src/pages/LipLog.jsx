@@ -433,7 +433,7 @@ return (
                                     {post.memo}
                                 </p> */}
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                                {/* <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
                                     <span style={{ 
                                         color: '#D1BA94', 
                                         fontSize: '0.75rem', 
@@ -445,7 +445,7 @@ return (
                                         alignItems: 'center',
                                         gap: '6px'
                                     }}>
-                                        {/* 컬러칩 (HexCode 데이터가 올 때까지 기본 골드 컬러 적용) */}
+
                                         <div style={{ 
                                             width: '10px', 
                                             height: '10px', 
@@ -454,6 +454,43 @@ return (
                                             border: '1px solid rgba(255,255,255,0.2)'
                                         }} />
                                         #{post.brandName || (post.lipLogs?.[0]?.brandName) || 'Brand'} {post.productName || (post.lipLogs?.[0]?.productName) || 'Product'}
+                                    </span>
+                                </div> */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+                                    <span style={{ 
+                                        color: '#D1BA94', 
+                                        fontSize: '0.75rem', 
+                                        fontWeight: '600',
+                                        background: 'rgba(209, 186, 148, 0.1)',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        border: '1px solid rgba(209, 186, 148, 0.2)'
+                                    }}>
+                                        {/* 컬러칩 표시: hexCode 우선 참조 */}
+                                        <div style={{ 
+                                            width: '12px', 
+                                            height: '12px', 
+                                            borderRadius: '50%', 
+                                            backgroundColor: post.lipLogs?.[0]?.hexCode || '#D1BA94',
+                                            border: '1px solid rgba(255,255,255,0.3)'
+                                        }} />
+                                        
+                                        {/* 브랜드명과 컬러네임 조합 */}
+                                        {/* <span style={{ letterSpacing: '0.5px' }}>
+                                            {(post.brandName || post.lipLogs?.[0]?.brandName || 'TOUT LIP').toUpperCase()}
+                                            <span style={{ color: '#fff', margin: '0 6px', opacity: 0.5 }}>|</span>
+                                            {post.productName || post.lipLogs?.[0]?.colorName || post.lipLogs?.[0]?.productName || 'Custom Look'}
+                                        </span> */}
+                                        <span style={{ letterSpacing: '0.5px' }}>
+                                            {(post.brandName || post.lipLogs?.[0]?.brandName || 'TOUT LIP').toUpperCase()}
+                                            <span style={{ color: '#fff', margin: '0 6px', opacity: 0.5 }}>|</span>
+                                            
+                                            {/* 📍 [핀셋] 여기도 colorName을 1순위로 가져오게 수정하여 'Bee's Knees'가 나오게 함 */}
+                                            {post.lipLogs?.[0]?.colorName || post.productName || post.lipLogs?.[0]?.productName || 'Custom Look'}
+                                        </span>
                                     </span>
                                 </div>
 

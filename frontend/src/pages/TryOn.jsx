@@ -468,13 +468,15 @@ const TryOn = () => {
                             </div> */}
                             <div className="info-main">
                                 {/* 📍 [핀셋] 객체 구조에 따라 name 또는 colorName을 참조 */}
-                                <h3>{selectedProduct.name || selectedProduct.colorName || "New Shade"}</h3>
+                                {/* <h3>{selectedProduct.name || selectedProduct.colorName || "New Shade"}</h3> */}
+                                <h3>{selectedProduct.colorName || selectedProduct.name || "New Shade"}</h3>
                             </div>
                             {/* <p className="brand-name">
                                 {(selectedProduct?.brandName || selectedProduct?.brand || currentBrand || 'TOUT LIP').toUpperCase()} - SELECTED LOOK
                             </p> */}
                             <p className="brand-name">
-                                {(selectedProduct?.brandName || currentBrand).toUpperCase()}
+                                {/* {(selectedProduct?.brandName || currentBrand).toUpperCase()} */}
+                                {(selectedProduct.brandName || selectedProduct.brand || currentBrand || 'TOUT LIP').toUpperCase()}
                             </p>
                         </ProductDetailInfo>
                     )}

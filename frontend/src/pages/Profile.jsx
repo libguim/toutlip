@@ -444,8 +444,10 @@ const handleDeleteLog = async (logId) => {
                     <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '4px' }}>
                         {new Date(viewLog.createdAt).toLocaleDateString()}
                     </p>
-                    <h4>{viewLog.brandName}</h4>
-                    <p>{viewLog.productName}</p>
+                    {/* <h4>{viewLog.brandName}</h4>
+                    <p>{viewLog.productName}</p> */}
+                    <h4>{(viewLog.brandName || 'TOUT LIP').toUpperCase()}</h4>
+                    <p>{viewLog.colorName || viewLog.productName || 'Custom Shade'}</p>
                 </div>
 
                 {/* 📍 삭제 버튼 추가: 기존 SAVE IMAGE 버튼과 나란히 혹은 아래에 배치 */}
