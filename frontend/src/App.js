@@ -122,7 +122,7 @@ const ContentArea = styled.main`
     height: calc(100vh - 80px);
     width: 100%;
     position: relative;
-    overflow-y: auto;
+    // overflow-y: auto;
     background-color: ${props => props.theme.colors.darkBg};
     &::-webkit-scrollbar { display: none; }
 `;

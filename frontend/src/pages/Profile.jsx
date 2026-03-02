@@ -339,219 +339,287 @@ const handleDeleteLog = async (logId) => {
     }
 
     // B. 로그인 후 화면 (기존 갤러리 로직 유지)
+    // return (
+    //     <ProfileContainer>
+    //         <HeaderSection>
+    //             <ProfileImageWrapper>
+    //                 <img src="https://images.unsplash.com/photo-1581883556531-e5f8027f557f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=980" alt="Profile" />
+    //             </ProfileImageWrapper>
+    //             <UserName>{nickname}</UserName> 
+    //             <UserGrade>VVIP MEMBER</UserGrade>
+    //             <LogoutBtn onClick={() => { 
+    //                 localStorage.clear(); 
+    //                 setUserId(null); 
+    //                 setNickname("Moana"); // 로그아웃 시 초기화
+    //             }}>LOGOUT</LogoutBtn>
+    //         </HeaderSection>
+
+    //         <StatsContainer>
+    //             <StatItem>
+    //                 {/* 1. myGalleryLogs 대신 현재 상태인 myLogs를 사용합니다. */}
+    //                 <div className="count">{myLogs.length}</div>
+    //                 <div className="label">MY LOGS</div>
+    //             </StatItem>
+    //             <StatItem>
+    //                 {/* 2. SHARED는 내 로그들(myLogs) 중 isPublic이 true인 것만 필터링해서 카운트합니다. */}
+    //                 <div className="count">{myLogs.filter(log => log.isPublic).length}</div>
+    //                 <div className="label">SHARED</div>
+    //             </StatItem>
+    //             <StatItem>
+    //                 <div className="count">24</div> {/* 추후 좋아요 API 연결 */}
+    //                 <div className="label">FAVORITES</div>
+    //             </StatItem>
+    //         </StatsContainer>
+
+    //         <ContentSection>
+    //             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+    //                 <SectionTitle style={{ margin: 0 }}><GridIcon /> MY GALLERY</SectionTitle>
+    //                 <button 
+    //                     onClick={() => { setIsEditMode(!isEditMode); setSelectedLogIds([]); }}
+    //                     style={{ background: 'none', border: 'none', color: '#D1BA94', fontSize: '0.8rem', cursor: 'pointer' }}
+    //                 >
+    //                     {isEditMode ? 'CANCEL' : 'EDIT'}
+    //                 </button>
+    //             </div>
+
+    //             {/* 📍 [핀셋 추가] 편집 모드 상단 바 (image_511ad6.png 컨셉) */}
+    //             {isEditMode && (
+    //                 <EditActionBar>
+    //                     <div className="left" onClick={toggleSelectAll}>
+    //                         <div className={`checkbox ${selectedLogIds.length === myLogs.length ? 'checked' : ''}`} />
+    //                         <span>ALL ({selectedLogIds.length})</span>
+    //                     </div>
+    //                     <button className="delete-btn" onClick={handleDeleteSelected} disabled={selectedLogIds.length === 0}>
+    //                         DELETE SELECTED
+    //                     </button>
+    //                 </EditActionBar>
+    //             )}
+
+    //             {loading ? (
+    //                 <LoadingTextSmall>Loading your looks...</LoadingTextSmall>
+    //             ) : (
+    //                 <GalleryGrid>
+    //                     {myLogs.map((log) => (
+    //                         <GalleryItem 
+    //                             key={log.logId}
+    //                             $isSelected={selectedLogIds.includes(log.logId)}
+    //                             onClick={() => isEditMode ? toggleSelectLog(log.logId) : setViewLog(log)}
+    //                         >
+    //                             <LogImage src={log.photoUrl} alt="Lip Log" />
+                                
+    //                             {/* 📍 [핀셋 추가] 선택 모드 시 체크박스 노출 */}
+    //                             {isEditMode && (
+    //                                 <div className={`select-indicator ${selectedLogIds.includes(log.logId) ? 'checked' : ''}`}>
+    //                                     {selectedLogIds.includes(log.logId) && '✓'}
+    //                                 </div>
+    //                             )}
+                                
+    //                             {log.isPublic && <div className="shared-badge">SHARED</div>}
+    //                         </GalleryItem>
+    //                     ))}
+    //                 </GalleryGrid>
+    //             )}
+    //         </ContentSection>
+
+
+    //         {viewLog && (
+    //             <ModalOverlay onClick={() => setViewLog(null)}>
+    //                 <DetailModalContent onClick={(e) => e.stopPropagation()}>
+    //                     <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
+    //                     <DetailImage src={viewLog.photoUrl} alt="Detail View" />
+                        
+    //                     <ModalActionArea>
+    //                         <div className="info">
+    //                             {/* 📍 날짜 추가: 브랜드명 위에 작고 연하게 배치하면 세련돼 보여 */}
+    //                             <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '4px' }}>
+    //                                 {new Date(viewLog.createdAt).toLocaleDateString()}
+    //                             </p>
+    //                             {/* <h4>{viewLog.brandName}</h4>
+    //                             <p>{viewLog.productName}</p> */}
+    //                             <h4>{(viewLog.brandName || 'TOUT LIP').toUpperCase()}</h4>
+    //                             <p>{viewLog.colorName || viewLog.productName || 'Custom Shade'}</p>
+    //                         </div>
+
+    //                         {/* 📍 삭제 버튼 추가: 기존 SAVE IMAGE 버튼과 나란히 혹은 아래에 배치 */}
+
+
+    //                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+
+    //                             <button 
+    //                                 className="delete-btn"
+    //                                 onClick={() => handleDeleteWithConfirm(viewLog.logId)}
+    //                                 style={{
+    //                                     // 📍 '신중함'을 주는 디자인: 배경색 없이 테두리만 두어 '조심스러운' 느낌 강조
+    //                                     background: 'transparent',
+    //                                     border: '1.5px solid #ff4d4f',
+    //                                     color: '#ff4d4f',
+    //                                     /* 📍 [핀셋 추가] 요청하신 사이즈와 곡률 반영 */
+    //                                     padding: '10px 18px',
+    //                                     borderRadius: '8px',
+                                        
+    //                                     /* 📍 가독성을 위한 추가 설정 */
+    //                                     cursor: 'pointer',
+    //                                     fontSize: '13px',
+    //                                     fontWeight: '600',
+    //                                     transition: 'all 0.2s'
+    //                                 }}
+    //                             >
+    //                                 DELETE
+    //                             </button>
+
+    //                             <DownloadLink 
+    //                                 href={viewLog.photoUrl} 
+    //                                 download={`ToutLip_${viewLog.logId}.png`}
+    //                             >
+    //                                 SAVE IMAGE
+    //                             </DownloadLink>
+
+    //                         </div>
+    //                     </ModalActionArea>
+    //                 </DetailModalContent>
+    //             </ModalOverlay>
+    //         )}
+
+    //     </ProfileContainer>
+    // );
+
+
     return (
         <ProfileContainer>
-            <HeaderSection>
-                <ProfileImageWrapper>
-                    <img src="https://images.unsplash.com/photo-1581883556531-e5f8027f557f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=980" alt="Profile" />
-                </ProfileImageWrapper>
-                <UserName>{nickname}</UserName> 
-                <UserGrade>VVIP MEMBER</UserGrade>
-                <LogoutBtn onClick={() => { 
-                    localStorage.clear(); 
-                    setUserId(null); 
-                    setNickname("Moana"); // 로그아웃 시 초기화
-                }}>LOGOUT</LogoutBtn>
-            </HeaderSection>
+            {/* 📍 [핀셋 고정 영역] 헤더와 통계 영역은 스크롤되지 않고 고정됩니다. */}
+            <FixedTopArea>
+                <HeaderSection>
+                    <ProfileImageWrapper>
+                        <img src="https://images.unsplash.com/photo-1581883556531-e5f8027f557f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=980" alt="Profile" />
+                    </ProfileImageWrapper>
+                    <UserName>{nickname}</UserName> 
+                    <UserGrade>VVIP MEMBER</UserGrade>
+                    <LogoutBtn onClick={() => { 
+                        localStorage.clear(); 
+                        setUserId(null); 
+                        setNickname("Moana"); 
+                    }}>LOGOUT</LogoutBtn>
+                </HeaderSection>
 
-            {/* <StatSection>
-                <StatItem><span className="count">{myLogs.length}</span><span className="label">POSTS</span></StatItem>
-                <StatItem><span className="count">1.2k</span><span className="label">FOLLOWERS</span></StatItem>
-                <StatItem><span className="count">85</span><span className="label">FOLLOWING</span></StatItem>
-            </StatSection> */}
+                <StatsContainer>
+                    <StatItem>
+                        <div className="count">{myLogs.length}</div>
+                        <div className="label">MY LOGS</div>
+                    </StatItem>
+                    <StatItem>
+                        <div className="count">{myLogs.filter(log => log.isPublic).length}</div>
+                        <div className="label">SHARED</div>
+                    </StatItem>
+                    <StatItem>
+                        <div className="count">24</div>
+                        <div className="label">FAVORITES</div>
+                    </StatItem>
+                </StatsContainer>
+            </FixedTopArea>
 
-            <StatsContainer>
-                <StatItem>
-                    {/* 1. myGalleryLogs 대신 현재 상태인 myLogs를 사용합니다. */}
-                    <div className="count">{myLogs.length}</div>
-                    <div className="label">MY LOGS</div>
-                </StatItem>
-                <StatItem>
-                    {/* 2. SHARED는 내 로그들(myLogs) 중 isPublic이 true인 것만 필터링해서 카운트합니다. */}
-                    <div className="count">{myLogs.filter(log => log.isPublic).length}</div>
-                    <div className="label">SHARED</div>
-                </StatItem>
-                <StatItem>
-                    <div className="count">24</div> {/* 추후 좋아요 API 연결 */}
-                    <div className="label">FAVORITES</div>
-                </StatItem>
-            </StatsContainer>
-
-            {/* <ContentSection>
-                <SectionTitle><GridIcon /> MY GALLERY</SectionTitle>
-                {loading ? (
-                    <LoadingTextSmall>Loading your looks...</LoadingTextSmall>
-                ) : myLogs.length > 0 ? (
-
-                <GalleryGrid>
-                    {myLogs && myLogs.length > 0 ? (
-                        myLogs.map((log) => (
-                            <GalleryItem 
-                                key={log.logId} // 📍 고유한 logId를 key로 사용
-                                onClick={() => setViewLog(log)}
-                            >
-                                <LogImage 
-                                    // 📍 [핀셋] URL이 유효한지 확인하고, 없을 경우 기본 이미지 처리
-                                    src={log.photoUrl || "/default-image.png"} 
-                                    alt="Lip Log" 
-                                    // 📍 공유 중인 사진은 시각적으로 구분하여 중복 선택 방지
-                                    style={{ opacity: log.isPublic ? 0.5 : 1 }}
-                                />
-                                {log.isPublic && <div className="shared-badge">SHARED</div>}
-                                
-                                <LogOverlay className="overlay">
-                                    <DeleteBtn onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteLog(log.logId);
-                                    }}>삭제</DeleteBtn>
-                                </LogOverlay>
-                            </GalleryItem>
-                        ))
-                    ) : (
-                        <EmptyMessage>저장된 룩이 없습니다.</EmptyMessage>
-                    )}
-                </GalleryGrid>
-
-                ) : (
-                    <EmptyGalleryCard><p>아직 저장된 룩이 없습니다.</p></EmptyGalleryCard>
-                )}
-            </ContentSection> */}
-
-            <ContentSection>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                    <SectionTitle style={{ margin: 0 }}><GridIcon /> MY GALLERY</SectionTitle>
-                    <button 
-                        onClick={() => { setIsEditMode(!isEditMode); setSelectedLogIds([]); }}
-                        style={{ background: 'none', border: 'none', color: '#D1BA94', fontSize: '0.8rem', cursor: 'pointer' }}
-                    >
-                        {isEditMode ? 'CANCEL' : 'EDIT'}
-                    </button>
-                </div>
-
-                {/* 📍 [핀셋 추가] 편집 모드 상단 바 (image_511ad6.png 컨셉) */}
-                {isEditMode && (
-                    <EditActionBar>
-                        <div className="left" onClick={toggleSelectAll}>
-                            <div className={`checkbox ${selectedLogIds.length === myLogs.length ? 'checked' : ''}`} />
-                            <span>ALL ({selectedLogIds.length})</span>
-                        </div>
-                        <button className="delete-btn" onClick={handleDeleteSelected} disabled={selectedLogIds.length === 0}>
-                            DELETE SELECTED
+            {/* 📍 [핀셋 스크롤 영역] 여기서부터 MY GALLERY 리스트가 스크롤됩니다. */}
+            <ScrollableBottomArea>
+                <ContentSection>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <SectionTitle style={{ margin: 0 }}><GridIcon /> MY GALLERY</SectionTitle>
+                        <button 
+                            onClick={() => { setIsEditMode(!isEditMode); setSelectedLogIds([]); }}
+                            style={{ background: 'none', border: 'none', color: '#D1BA94', fontSize: '0.8rem', cursor: 'pointer' }}
+                        >
+                            {isEditMode ? 'CANCEL' : 'EDIT'}
                         </button>
-                    </EditActionBar>
-                )}
+                    </div>
 
-                {loading ? (
-                    <LoadingTextSmall>Loading your looks...</LoadingTextSmall>
-                ) : (
-                    <GalleryGrid>
-                        {myLogs.map((log) => (
-                            <GalleryItem 
-                                key={log.logId}
-                                $isSelected={selectedLogIds.includes(log.logId)}
-                                onClick={() => isEditMode ? toggleSelectLog(log.logId) : setViewLog(log)}
-                            >
-                                <LogImage src={log.photoUrl} alt="Lip Log" />
-                                
-                                {/* 📍 [핀셋 추가] 선택 모드 시 체크박스 노출 */}
-                                {isEditMode && (
-                                    <div className={`select-indicator ${selectedLogIds.includes(log.logId) ? 'checked' : ''}`}>
-                                        {selectedLogIds.includes(log.logId) && '✓'}
-                                    </div>
-                                )}
-                                
-                                {log.isPublic && <div className="shared-badge">SHARED</div>}
-                            </GalleryItem>
-                        ))}
-                    </GalleryGrid>
-                )}
-            </ContentSection>
+                    {/* 📍 편집 모드 상단 바 */}
+                    {isEditMode && (
+                        <EditActionBar>
+                            <div className="left" onClick={toggleSelectAll}>
+                                <div className={`checkbox ${selectedLogIds.length === myLogs.length ? 'checked' : ''}`} />
+                                <span>ALL ({selectedLogIds.length})</span>
+                            </div>
+                            <button className="delete-btn" onClick={handleDeleteSelected} disabled={selectedLogIds.length === 0}>
+                                DELETE SELECTED
+                            </button>
+                        </EditActionBar>
+                    )}
 
+                    {loading ? (
+                        <LoadingTextSmall>Loading your looks...</LoadingTextSmall>
+                    ) : (
+                        <GalleryGrid>
+                            {myLogs.map((log) => (
+                                <GalleryItem 
+                                    key={log.logId}
+                                    $isSelected={selectedLogIds.includes(log.logId)}
+                                    onClick={() => isEditMode ? toggleSelectLog(log.logId) : setViewLog(log)}
+                                >
+                                    <LogImage src={log.photoUrl} alt="Lip Log" />
+                                    
+                                    {/* 선택 모드 시 체크박스 노출 */}
+                                    {isEditMode && (
+                                        <div className={`select-indicator ${selectedLogIds.includes(log.logId) ? 'checked' : ''}`}>
+                                            {selectedLogIds.includes(log.logId) && '✓'}
+                                        </div>
+                                    )}
+                                    
+                                    {log.isPublic && <div className="shared-badge">SHARED</div>}
+                                </GalleryItem>
+                            ))}
+                        </GalleryGrid>
+                    )}
+                </ContentSection>
+            </ScrollableBottomArea>
 
+            {/* 📍 사진 상세 모달 로직 (기존과 동일) */}
             {viewLog && (
-    <ModalOverlay onClick={() => setViewLog(null)}>
-        <DetailModalContent onClick={(e) => e.stopPropagation()}>
-            <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
-            <DetailImage src={viewLog.photoUrl} alt="Detail View" />
-            
-            <ModalActionArea>
-                <div className="info">
-                    {/* 📍 날짜 추가: 브랜드명 위에 작고 연하게 배치하면 세련돼 보여 */}
-                    <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '4px' }}>
-                        {new Date(viewLog.createdAt).toLocaleDateString()}
-                    </p>
-                    {/* <h4>{viewLog.brandName}</h4>
-                    <p>{viewLog.productName}</p> */}
-                    <h4>{(viewLog.brandName || 'TOUT LIP').toUpperCase()}</h4>
-                    <p>{viewLog.colorName || viewLog.productName || 'Custom Shade'}</p>
-                </div>
+                <ModalOverlay onClick={() => setViewLog(null)}>
+                    <DetailModalContent onClick={(e) => e.stopPropagation()}>
+                        <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
+                        <DetailImage src={viewLog.photoUrl} alt="Detail View" />
+                        
+                        <ModalActionArea>
+                            <div className="info">
+                                <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '4px' }}>
+                                    {new Date(viewLog.createdAt).toLocaleDateString()}
+                                </p>
+                                <h4>{(viewLog.brandName || 'TOUT LIP').toUpperCase()}</h4>
+                                <p>{viewLog.colorName || viewLog.productName || 'Custom Shade'}</p>
+                            </div>
 
-                {/* 📍 삭제 버튼 추가: 기존 SAVE IMAGE 버튼과 나란히 혹은 아래에 배치 */}
-
-
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-
-                    <button 
-                        className="delete-btn"
-                        onClick={() => handleDeleteWithConfirm(viewLog.logId)}
-                        style={{
-                            // 📍 '신중함'을 주는 디자인: 배경색 없이 테두리만 두어 '조심스러운' 느낌 강조
-                            background: 'transparent',
-                            border: '1.5px solid #ff4d4f',
-                            color: '#ff4d4f',
-                            /* 📍 [핀셋 추가] 요청하신 사이즈와 곡률 반영 */
-                            padding: '10px 18px',
-                            borderRadius: '8px',
-                            
-                            /* 📍 가독성을 위한 추가 설정 */
-                            cursor: 'pointer',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        DELETE
-                    </button>
-
-                    <DownloadLink 
-                        href={viewLog.photoUrl} 
-                        download={`ToutLip_${viewLog.logId}.png`}
-                    >
-                        SAVE IMAGE
-                    </DownloadLink>
-
-                    {/* 📍 삭제 버튼: 우리가 완성한 그 '강력한 삭제' 함수를 연결해! */}
-                    {/* <button 
-                        className="delete-btn"
-                        onClick={() => {
-                            if(window.confirm("정말 삭제하시겠습니까? 연결된 게시글도 함께 삭제됩니다.")) {
-                                handleDelete(viewLog.logId); // 📍 기존 삭제 함수 호출
-                                setViewLog(null); // 모달 닫기
-                            }
-                        }}
-                        style={{
-                            background: 'none',
-                            border: '1px solid #ff4d4f',
-                            color: '#ff4d4f',
-                            padding: '6px 12px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            borderRadius: '4px'
-                        }}
-                    >
-                        DELETE
-                    </button> */}
-
-
-                </div>
-            </ModalActionArea>
-        </DetailModalContent>
-    </ModalOverlay>
-)}
-
-
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <button 
+                                    className="delete-btn"
+                                    onClick={() => handleDeleteWithConfirm(viewLog.logId)}
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1.5px solid #ff4d4f',
+                                        color: '#ff4d4f',
+                                        padding: '10px 18px',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    DELETE
+                                </button>
+                                <DownloadLink 
+                                    href={viewLog.photoUrl} 
+                                    download={`ToutLip_${viewLog.logId}.png`}
+                                >
+                                    SAVE IMAGE
+                                </DownloadLink>
+                            </div>
+                        </ModalActionArea>
+                    </DetailModalContent>
+                </ModalOverlay>
+            )}
         </ProfileContainer>
     );
+
+
+
 };
 
 // --- 스타일 컴포넌트 생략 (기존 코드의 스타일을 그대로 유지하세요) ---
@@ -586,11 +654,11 @@ const LogoutBtn = styled.button`
 
 // --- Styled Components ---
 
-const ProfileContainer = styled.div`
-    padding: 40px 24px 120px 24px;
-    background-color: #000;
-    min-height: 100vh;
-`;
+// const ProfileContainer = styled.div`
+//     padding: 40px 24px 120px 24px;
+//     background-color: #000;
+//     min-height: 100vh;
+// `;
 
 const LoadingText = styled.div`
     height: 100vh; background: #000; color: #D1BA94;
@@ -660,7 +728,10 @@ const StatItem = styled.div`
   }
 `;
 
-const ContentSection = styled.div` margin-bottom: 30px; `;
+const ContentSection = styled.div` 
+    margin-bottom: 30px; 
+    overflow-y: auto;    
+`;
 const SectionTitle = styled.h3` font-size: 0.8rem; color: #FFF; display: flex; align-items: center; gap: 8px; margin-bottom: 15px; `;
 
 const GalleryGrid = styled.div`
@@ -934,6 +1005,44 @@ const GalleryItem = styled.div`
         display: flex; align-items: center; justify-content: center;
         color: #fff; font-size: 12px;
         &.checked { background: #D1BA94; border-color: #D1BA94; }
+    }
+`;
+
+/* --- Profile.jsx 하단 스타일 정의 부분 --- */
+
+const ProfileContainer = styled.div`
+    background-color: #000;
+    height: 100vh;      /* 📍 [핀셋] 화면 전체 높이를 기기에 맞춤 */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;   /* 📍 [핀셋] 전체 스크롤을 막아 헤더 고정 효과 */
+`;
+
+const FixedTopArea = styled.div`
+    flex-shrink: 0; /* 내용만큼 높이를 차지하고 줄어들지 않음 */
+    z-index: 10;
+    background-color: #000;
+    margin-top: 48px;
+`;
+
+const ScrollableBottomArea = styled.div`
+    flex: 1;            /* 남은 화면 공간을 모두 차지 */
+    overflow-y: auto;
+
+    /* 📍 [핀셋 추가] 모바일 관성 스크롤 활성화 (끊김 방지 핵심) */
+    -webkit-overflow-scrolling: touch; 
+    
+    /* 📍 [핀셋 추가] 스크롤 애니메이션을 부드럽게 */
+    scroll-behavior: smooth;
+
+    /* 📍 [핀셋 수정] 상단 영역과의 간격 고정 */
+    margin-top: 20px;   
+    
+    /* 📍 [핀셋 수정] 하단 잘림 방지: 탭바 높이를 고려하여 아래쪽 여백을 150px로 충분히 확보 */
+    padding: 10px 24px 210px 24px;
+    
+    &::-webkit-scrollbar {
+        display: none;  /* 깔끔한 디자인을 위해 스크롤바 숨김 */
     }
 `;
 
