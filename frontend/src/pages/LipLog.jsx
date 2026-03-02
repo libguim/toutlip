@@ -8,7 +8,6 @@ const LipLog = () => {
     const [loading, setLoading] = useState(true);
     const [selectedImages, setSelectedImages] = useState([]); // 선택된 사진 ID들
     const [showWriteModal, setShowWriteModal] = useState(false);
-    // LipLog.jsx 상단 상태 선언부에 추가
     const [selectedLogs, setSelectedLogs] = useState([]); // 선택된 사진 ID 리스트 (최대 3장)
     const [postMemo, setPostMemo] = useState("");         // 공유 시 작성할 글 내용
     const [isWriteModalOpen, setIsWriteModalOpen] = useState(false); // 작성 모달 제어
@@ -17,6 +16,134 @@ const LipLog = () => {
     const [isEditMode, setIsEditMode] = useState(false); // 수정 모드 여부
     const [editingPostId, setEditingPostId] = useState(null); // 수정 중인 게시글 ID
     const [publicLogs, setPublicLogs] = useState([]);
+    const [activePostId, setActivePostId] = useState(null); // 현재 댓글창이 열린 게시글 ID
+    const [comments, setComments] = useState({});           // 게시글별 댓글 리스트 { postId: [comments] }
+    const [commentInputs, setCommentInputs] = useState({}); // { postId: "입력내용" }
+
+    const [modalConfig, setModalConfig] = useState({ 
+        isOpen: false, 
+        type: 'alert', // 'alert', 'confirm', 'prompt'
+        message: '', 
+        onConfirm: null,
+        inputValue: '' 
+    });
+
+    const closeModal = () => setModalConfig(prev => ({ ...prev, isOpen: false }));
+
+    const handleInputChange = (postId, value) => {
+    setCommentInputs(prev => ({
+        ...prev,
+        [postId]: value
+    }));
+};
+
+    // 📍 [핀셋] 특정 게시글의 댓글 불러오기
+const fetchComments = async (postId) => {
+    try {
+        const res = await axios.get(`http://localhost:8080/api/comments/post/${postId}`);
+        console.log("📡 [댓글 데이터 수신]:", res.data);
+        console.log("👤 [내 로컬 ID]:", localStorage.getItem("userId"));
+
+        setComments(prev => ({ ...prev, [postId]: res.data }));
+        setActivePostId(activePostId === postId ? null : postId); // 토글 방식
+    } catch (err) {
+        console.error("댓글 로드 실패:", err);
+    }
+};
+
+const handleCommentSubmit = async (postId) => {
+    const userId = localStorage.getItem("userId");
+    const content = commentInputs[postId]; // 해당 게시글의 입력값만 가져옴
+
+    if (!content || !content.trim()) return;
+
+    try {
+        await axios.post(`http://localhost:8080/api/comments`, {
+            userId: userId,
+            postId: postId,
+            content: content
+        });
+        
+        // 제출 후 해당 게시글의 입력창만 비우기
+        setCommentInputs(prev => ({ ...prev, [postId]: "" }));
+        fetchComments(postId); 
+    } catch (err) {
+        alert("댓글 등록에 실패했습니다.");
+    }
+};
+
+// const handleCommentEdit = async (postId, comment) => {
+//     const userId = localStorage.getItem("userId");
+//     const newContent = prompt("댓글 수정:", comment.content);
+    
+//     if (!newContent || newContent === comment.content) return;
+
+//     try {
+//         await axios.put(`http://localhost:8080/api/comments/${comment.commentId}`, {
+//             userId: userId,
+//             content: newContent
+//         });
+//         fetchComments(postId); // 목록 새로고침
+//     } catch (err) {
+//         console.error("댓글 수정 실패:", err);
+//         alert("수정 중 오류가 발생했습니다.");
+//     }
+// };
+
+const handleCommentEdit = (postId, comment) => {
+    setModalConfig({
+        isOpen: true,
+        type: 'prompt',
+        message: "수정할 내용을 입력해 주세요. ✨",
+        inputValue: comment.content,
+        onConfirm: async (newContent) => {
+            const userId = localStorage.getItem("userId");
+            if (!newContent || newContent === comment.content) {
+                closeModal();
+                return;
+            }
+            try {
+                await axios.put(`http://localhost:8080/api/comments/${comment.commentId}`, {
+                    userId: userId,
+                    content: newContent
+                });
+                fetchComments(postId);
+                closeModal();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    });
+};
+
+
+const handleCommentDelete = (postId, commentId) => {
+    setModalConfig({
+        isOpen: true,
+        type: 'confirm',
+        message: "댓글을 영구적으로 삭제하시겠습니까? 💄",
+        onConfirm: async () => {
+            const userId = localStorage.getItem("userId");
+            try {
+                await axios.delete(`http://localhost:8080/api/comments/${commentId}?userId=${userId}`);
+                fetchComments(postId);
+                closeModal();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    });
+};
+
+const fetchAllComments = async (postId) => {
+    try {
+        const res = await axios.get(`http://localhost:8080/api/comments/post/${postId}`);
+        // activePostId와 상관없이 각 포스트의 댓글 바구니를 채웁니다.
+        setComments(prev => ({ ...prev, [postId]: res.data }));
+    } catch (err) {
+        console.error(`댓글 로드 실패 (Post: ${postId}):`, err);
+    }
+};
 
 // 📍 [수정] 피드 작성하기 버튼 클릭 시
 const handleCreateClick = () => {
@@ -192,20 +319,15 @@ const fetchPublicLogs = async () => {
     try {
         setLoading(true);
         const userId = localStorage.getItem("userId");
-        // const response = await axios.get('http://localhost:8080/api/liplogs/public');
         const response = await axios.get(`http://localhost:8080/api/liplogs/public${userId ? `?userId=${userId}` : ''}`);
-        
-        // 🔍 [디버깅 1] 서버에서 내려주는 전체 데이터 구조 확인
-        console.log("📡 [피드 전체 데이터]:", response.data);
 
-        if (response.data.length > 0) {
-            const firstPost = response.data[0];
-            // 🔍 [디버깅 2] 첫 번째 게시글의 사진 경로가 유효한지 확인
-            console.log(`📝 게시글(${firstPost.postId}) 데이터 필드들:`, Object.keys(firstPost));
-            console.log(`❤️ 현재 좋아요 수:`, firstPost.likeCount); 
-            console.log(`✅ 내가 좋아요 눌렀나?:`, firstPost.isLiked);
+        // 1. 피드 데이터 저장
+        const posts = response.data;
+        setPublicLogs(posts);
+
+        if (Array.isArray(posts)) {
+            posts.forEach(post => fetchAllComments(post.postId));
         }
-        setPublicLogs(response.data);
     } catch (error) {
         console.error("❌ 피드 로딩 실패. 서버 상태를 확인하세요:", error.response || error);
     } finally {
@@ -347,6 +469,7 @@ const handlePostSubmit = async () => {
     if (loading) return <LoadingScreen>TOUT LIP: Loading Feed...</LoadingScreen>;
 
 return (
+    <>
         <FeedContainer>
 
             <HeaderArea>
@@ -430,54 +553,70 @@ return (
                                         </span>
                                     </IconButton>
                                     
-                                    <IconButton style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    {/* <IconButton style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                         <span style={{ fontSize: '1.2rem' }}>💬</span>
                                         <span style={{ fontSize: '0.9rem', color: '#fff' }}>댓글</span>
+                                    </IconButton> */}
+                                    <IconButton 
+                                        onClick={() => fetchComments(post.postId)}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                                    >
+                                        <span style={{ fontSize: '1.2rem' }}>💬</span>
+                                        <span style={{ fontSize: '0.9rem', color: '#fff' }}>
+                                            {/* 📍 [핀셋] 게시글별로 저장된 댓글 개수를 실시간으로 보여줍니다. */}
+                                            {comments[post.postId]?.length || 0}
+                                        </span>
                                     </IconButton>
                                 </div>
                             </ActionArea>
-                            {/* <ActionArea>
-                                <div className="icons">
-                                    <IconButton onClick={() => handleLike(post.postId)}>
-                                        {post.isLiked ? '❤️' : '🤍'} {post.likeCount || 0}
-                                    </IconButton>
-                                    <IconButton>💬 댓글</IconButton>
-                                </div>
-                            </ActionArea> */}
+                            
+                                <CommentSection>
+                                    <div className="comment-list">
+                                        {(comments[post.postId] || []).map((c, idx) => {
+                                            // 📍 [핀셋 추가] 내 댓글인지 판단 (ID 비교)
+                                            const isMyComment = String(localStorage.getItem("userId")) === String(c.userId);
+
+                                            return (
+                                                <CommentItem key={c.commentId || idx}>
+                                                    <div className="comment-content">
+                                                        <span className="author">{c.nickname}</span>
+                                                        <span className="text">{c.content}</span>
+                                                    </div>
+
+                                                    {isMyComment && (
+                                                        <div className="comment-actions">
+                                                            <button className="action-btn" onClick={() => handleCommentEdit(post.postId, c)}>수정</button>
+                                                            <button className="action-btn del" onClick={() => handleCommentDelete(post.postId, c.commentId)}>삭제</button>
+                                                        </div>
+                                                    )}
+                                                </CommentItem>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="comment-input-area">
+                                        <input 
+                                            // 📍 [수정] newComment 대신 commentInputs[post.postId] 사용
+                                            value={commentInputs[post.postId] || ""} 
+                                            // 📍 [수정] setNewComment 대신 우리가 만든 handleInputChange 사용
+                                            onChange={(e) => handleInputChange(post.postId, e.target.value)}
+                                            placeholder="댓글을 입력하세요..." 
+                                            onKeyPress={(e) => e.key === 'Enter' && handleCommentSubmit(post.postId)}
+                                        />
+                                        <button 
+                                            onClick={() => handleCommentSubmit(post.postId)}
+                                            disabled={!(commentInputs[post.postId] || "").trim()}
+                                        >
+                                            게시
+                                        </button>
+                                    </div>
+                                </CommentSection>
 
                             <PostContent>
                                 <p className="description" style={{ marginTop: '0', lineHeight: '1.5' }}>
                                     <span className="bold" style={{ marginRight: '8px' }}>{post.nickname}</span>
                                     {post.memo}
                                 </p>
-                                {/* <p className="description">
-                                    <span className="bold">{post.nickname}</span>
-                                    {post.memo}
-                                </p> */}
 
-                                {/* <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                                    <span style={{ 
-                                        color: '#D1BA94', 
-                                        fontSize: '0.75rem', 
-                                        fontWeight: '600',
-                                        background: 'rgba(209, 186, 148, 0.1)',
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
-                                    }}>
-
-                                        <div style={{ 
-                                            width: '10px', 
-                                            height: '10px', 
-                                            borderRadius: '50%', 
-                                            backgroundColor: post.lipLogs?.[0]?.hexCode || '#D1BA94',
-                                            border: '1px solid rgba(255,255,255,0.2)'
-                                        }} />
-                                        #{post.brandName || (post.lipLogs?.[0]?.brandName) || 'Brand'} {post.productName || (post.lipLogs?.[0]?.productName) || 'Product'}
-                                    </span>
-                                </div> */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
                                     <span style={{ 
                                         color: '#D1BA94', 
@@ -500,12 +639,6 @@ return (
                                             border: '1px solid rgba(255,255,255,0.3)'
                                         }} />
                                         
-                                        {/* 브랜드명과 컬러네임 조합 */}
-                                        {/* <span style={{ letterSpacing: '0.5px' }}>
-                                            {(post.brandName || post.lipLogs?.[0]?.brandName || 'TOUT LIP').toUpperCase()}
-                                            <span style={{ color: '#fff', margin: '0 6px', opacity: 0.5 }}>|</span>
-                                            {post.productName || post.lipLogs?.[0]?.colorName || post.lipLogs?.[0]?.productName || 'Custom Look'}
-                                        </span> */}
                                         <span style={{ letterSpacing: '0.5px' }}>
                                             {(post.brandName || post.lipLogs?.[0]?.brandName || 'TOUT LIP').toUpperCase()}
                                             <span style={{ color: '#fff', margin: '0 6px', opacity: 0.5 }}>|</span>
@@ -529,59 +662,6 @@ return (
                 </FloatingWriteButton>
             </FixedActionArea>
 
-            {/* 2. 작성 모달 */}
-            {/* {isWriteModalOpen && (
-                <ModalOverlay>
-                    <ModalContent>
-                        <h2>Share Your Radiance</h2>
-                            <PhotoSelectorGrid>
-                                {myGalleryLogs.map(log => {
-                                    // 📍 현재 사진이 몇 번째로 선택되었는지 인덱스를 찾습니다.
-                                    const selectedIndex = selectedLogIds.indexOf(log.logId);
-                                    const isSelected = selectedIndex !== -1;
-
-                                    return (
-                                        <SelectableItem 
-                                            key={log.logId} 
-                                            $isSelected={isSelected}
-                                            onClick={() => toggleSelectPhoto(log.logId)}
-                                        >
-
-                                            <ImageSlider 
-                                                images={selectedLogIds.map(id => 
-                                                    myGalleryLogs.find(log => log.logId === id)
-                                                ).filter(Boolean)} 
-                                            />
-
-
-                                            {isSelected && (
-                                                <CheckBadge>
-                                                    {selectedIndex + 1}
-                                                </CheckBadge>
-                                            )}
-                                        </SelectableItem>
-                                    );
-                                })}
-                            </PhotoSelectorGrid>
-
-                        <MemoInput 
-                            value={postMemo}
-                            onChange={(e) => setPostMemo(e.target.value)}
-                            placeholder="글귀를 남겨보세요..."
-                        />
-                        
-                        <div className="btn-group">
-                            <button 
-                                onClick={handlePostSubmit}
-                                style={{ opacity: selectedLogIds.length < 1 ? 0.5 : 1 }}
-                            >
-                                공유하기
-                            </button>
-                            <button onClick={() => setIsWriteModalOpen(false)}>취소</button>
-                        </div>
-                    </ModalContent>
-                </ModalOverlay>
-            )} */}
 
         {isWriteModalOpen && (
             <ModalOverlay onClick={() => setIsWriteModalOpen(false)}>
@@ -635,6 +715,37 @@ return (
         )}
 
         </FeedContainer>
+
+        {modalConfig.isOpen && (
+            <ModalOverlay onClick={closeModal}>
+                <CustomModalContent onClick={(e) => e.stopPropagation()}>
+                    <h3 className="modal-title">{modalConfig.type.toUpperCase()}</h3>
+                    <p className="modal-message">{modalConfig.message}</p>
+                    
+                    {modalConfig.type === 'prompt' && (
+                        <ModalInput 
+                            autoFocus
+                            value={modalConfig.inputValue}
+                            onChange={(e) => setModalConfig({...modalConfig, inputValue: e.target.value})}
+                        />
+                    )}
+                    
+                    <div className="modal-btns">
+                        {modalConfig.type !== 'alert' && (
+                            <button className="sub-btn" onClick={closeModal}>CANCEL</button>
+                        )}
+                        <button 
+                            className="main-btn" 
+                            onClick={() => modalConfig.onConfirm(modalConfig.inputValue)}
+                        >
+                            {modalConfig.type === 'confirm' ? 'DELETE' : 'CONFIRM'}
+                        </button>
+                    </div>
+                </CustomModalContent>
+            </ModalOverlay>
+        )}
+    </>
+
     );
 };
 
@@ -1076,5 +1187,111 @@ const CloseBtn = styled.button`
     &:hover { color: #fff; }
 `;
 
+/* LipLog.jsx 하단 Styled Components 추가 */
+
+const CommentSection = styled.div`
+    padding: 12px 16px;
+    background: #050505;
+    border-top: 1px solid #1a1a1a;
+    animation: fadeIn 0.3s ease;
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .comment-list {
+        max-height: 150px;
+        overflow-y: auto;
+        margin-bottom: 12px;
+        /* 스크롤바 숨기기 */
+        &::-webkit-scrollbar { display: none; }
+    }
+
+    .comment-input-area {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        
+        input {
+            flex: 1;
+            background: #111;
+            border: 1px solid #222;
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 18px;
+            font-size: 0.8rem;
+            outline: none;
+            &:focus { border-color: #D1BA94; }
+        }
+
+        button {
+            background: none;
+            border: none;
+            color: #D1BA94;
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            &:disabled { color: #444; cursor: default; }
+        }
+    }
+`;
+
+const CommentItem = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+    gap: 10px;
+
+    .comment-content { flex: 1; line-height: 1.4; }
+    .author { font-weight: 700; color: #D1BA94; margin-right: 8px; }
+    .text { color: #eee; word-break: break-all; }
+
+    .comment-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .action-btn {
+        background: none;
+        border: none;
+        color: #666;
+        font-size: 0.65rem;
+        cursor: pointer;
+        padding: 0;
+        &:hover { color: #D1BA94; }
+        &.del:hover { color: #ff4d4f; }
+    }
+`;
+
+const CustomModalContent = styled.div`
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+
+    .modal-title { color: #D1BA94; font-size: 0.7rem; letter-spacing: 3px; margin-bottom: 15px; }
+    .modal-message { color: #fff; font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5; }
+    
+    .modal-btns { display: flex; gap: 10px; justify-content: center; }
+    button {
+        padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: 0.8rem; cursor: pointer; border: none; flex: 1;
+    }
+    .main-btn { background: #D1BA94; color: #000; }
+    .sub-btn { background: #222; color: #888; }
+`;
+
+const ModalInput = styled.input`
+    width: 100%; background: #000; border: 1px solid #333; color: #fff;
+    padding: 12px; border-radius: 10px; margin-bottom: 20px; outline: none;
+    &:focus { border-color: #D1BA94; }
+`;
 
 export default LipLog;
