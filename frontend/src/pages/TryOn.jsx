@@ -18,10 +18,12 @@ const TryOn = () => {
     const faceMeshRef = useRef(null);
     const cameraRef = useRef(null);
     const selectedProductRef = useRef(null); // [핀셋 추가] 실시간 참조용
+    const prevLandmarksRef = useRef(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [capturedImgForConfirm, setCapturedImgForConfirm] = useState(null);
     const [modalMessage, setModalMessage] = useState("");
+    const [selectedProducts, setSelectedProducts] = useState([]); // 단일 객체에서 배열로 변경
 
     const handleSaveClick = () => {
     setIsConfirmOpen(true); // 바로 저장하지 않고 팝업을 띄움
@@ -32,33 +34,53 @@ const TryOn = () => {
         setCapturedImgForConfirm(null);
     };
 
-    const confirmSave = async () => {
-        if (isSaving || !capturedImgForConfirm || !selectedProduct) return;
-        setIsSaving(true);
-        try {
-            const response = await axios.post('http://localhost:8080/api/try-on/save', {
-                userId: Number(localStorage.getItem("userId")),
-                colorId: selectedProduct.id, 
-                photoUrl: capturedImgForConfirm,
-                isPublic: false,
-                memo: `${selectedProduct.brandName || selectedProduct.brand} 시착 샷`
-            });
-            // alert("보관함에 저장되었습니다! ✨");
-            // closeConfirmModal();
-            setModalMessage("보관함에 예쁘게 저장되었습니다! ✨");
-            setCapturedImgForConfirm(null); // 저장 성공 시 이미지만 제거하여 알림창으로 전환
-        } catch (error) {
-            // console.error("저장 실패:", error);
-            // alert("저장에 실패했습니다.");
-            setModalMessage("저장에 실패했습니다. 다시 시도해 주세요.");
-        } finally {
-            setIsSaving(false);
+    const handleReset = () => {
+        setSelectedProducts([]); // 선택 배열 비우기
+        if (prevLandmarksRef.current) {
+            prevLandmarksRef.current = null; // 렌더링 좌표 초기화
         }
     };
 
+const confirmSave = async () => {
+    // [핀셋 수정] selectedProduct 대신 selectedProducts 배열을 체크합니다.
+    if (isSaving || !capturedImgForConfirm || selectedProducts.length === 0) return;
+    
+    setIsSaving(true);
+    try {
+        const primaryProduct = selectedProducts[0]; // 대표 컬러
+        const response = await axios.post('http://localhost:8080/api/try-on/save', {
+            userId: Number(localStorage.getItem("userId")),
+            colorId: primaryProduct.id, 
+            photoUrl: capturedImgForConfirm,
+            isPublic: false,
+            // [핀셋 수정] 2개일 때와 1개일 때의 메모를 구분합니다.
+            memo: selectedProducts.length === 2 
+                ? `${selectedProducts[0].brandName} & ${selectedProducts[1].brandName} 믹스 조합`
+                : `${primaryProduct.brandName || primaryProduct.brand} 시착 샷`
+        });
+        
+        setModalMessage("보관함에 예쁘게 저장되었습니다! ✨");
+        setCapturedImgForConfirm(null); 
+    } catch (error) {
+        setModalMessage("저장에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+        setIsSaving(false);
+    }
+};
+
+    const handleProductSelect = (product) => {
+        setSelectedProducts(prev => {
+            // 이미 선택된 제품이면 제거 (토글)
+            if (prev.find(p => p.id === product.id)) {
+                return prev.filter(p => p.id !== product.id);
+            }
+            return [...prev, product].slice(-2);
+        });
+    };
+
     useEffect(() => {
-        selectedProductRef.current = selectedProduct;
-    }, [selectedProduct]);
+        selectedProductRef.current = selectedProducts;
+    }, [selectedProducts]);
 
     // handleSave 함수 핀셋 수정
     const handleSave = async () => {
@@ -121,7 +143,7 @@ const TryOn = () => {
                             brandName: product.brandName || firstBrand 
                         }));
                         setProducts(colorRes.data);
-                        setSelectedProduct(colorRes.data[0]);
+                        setSelectedProducts([colorRes.data[0]]); // [수정] 배열 형태로 저장
                         console.log("✅ 데이터 로드 성공!");
                     } else {
                         console.warn("❌ 데이터는 성공적으로 호출했으나 DB가 비어있습니다 (Length 0)");
@@ -154,7 +176,8 @@ const TryOn = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
-        const currentProduct = selectedProductRef.current;
+        // const currentProduct = selectedProductRef.current;
+        const currentProducts = selectedProductRef.current || [];
         
         if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
             // [디버깅] 컬러 변경 여부 콘솔 확인
@@ -163,8 +186,10 @@ const TryOn = () => {
             drawLips(
                 ctx,
                 results.multiFaceLandmarks[0],
-                currentProduct?.hexCode || 'transparent',
-                currentProduct?.texture || 'matte'
+                currentProducts[0]?.hexCode || 'transparent', // 첫 번째 선택 색상
+                currentProducts[1]?.hexCode || null,          // 두 번째 선택 색상
+                currentProducts[0]?.texture || 'matte',
+                prevLandmarksRef
             );
         }
         ctx.restore();
@@ -192,15 +217,6 @@ const TryOn = () => {
 
             // [핵심] 카메라가 설정되어 있지 않다면 즉시 시작
             if (videoRef.current && !cameraRef.current) {
-                // cameraRef.current = new cam.Camera(videoRef.current, {
-                //     onFrame: async () => {
-                //         if (faceMeshRef.current && !isCancelled) {
-                //             await faceMeshRef.current.send({ image: videoRef.current });
-                //         }
-                //     },
-                //     width: 640,
-                //     height: 480,
-                // });
                 cameraRef.current = new cam.Camera(videoRef.current, {
                     onFrame: async () => {
                         const currentVideo = videoRef.current;
@@ -239,45 +255,25 @@ const TryOn = () => {
 
 
     // handleCapture 함수 수정
-    const handleCapture = async () => {
-        const currentProduct = selectedProduct; // 현재 state 사용
-        
-        console.log("📸 [저장 시도] 데이터 확인:", currentProduct);
-
-        if (!currentProduct) {
-            // alert("컬러를 먼저 선택해 주세요! ✨");
-            setModalMessage("컬러를 먼저 선택해 주세요! ✨"); 
-            setIsConfirmOpen(true);
-            return;
-        }
-
-        const canvas = canvasRef.current;
-        if (!canvas) {
-            alert("카메라 화면을 불러올 수 없습니다.");
-            return;
-        }
-
-        const imageData = canvas.toDataURL("image/png");
-
-        setCapturedImgForConfirm(imageData);
+const handleCapture = async () => {
+    // [핀셋 수정] 배열(selectedProducts)이 비어있는지 확인합니다.
+    if (selectedProducts.length === 0) {
+        setModalMessage("컬러를 먼저 선택해 주세요! ✨"); 
         setIsConfirmOpen(true);
+        return;
+    }
 
-        // try {
-        //     const response = await axios.post('http://localhost:8080/api/try-on/save', {
-        //         userId: Number(localStorage.getItem("userId")),
-        //         colorId: currentProduct.id, 
-        //         photoUrl: imageData,
-        //         isPublic: false,
-        //         memo: `${currentProduct.brandName || currentProduct.brand} 시착 샷`
-        //     });
-        //     console.log("✅ 저장 성공 응답:", response.data);
-        //     alert("보관함에 저장되었습니다! ✨");
-        // } catch (error) {
-        //     // [디버깅] 서버 에러 메시지 상세 출력
-        //     console.error("❌ 저장 실패 사유:", error.response?.data || error.message);
-        //     alert("저장에 실패했습니다. 콘솔을 확인해 주세요.");
-        // }
-    };    
+    const canvas = canvasRef.current;
+    if (!canvas) {
+        alert("카메라 화면을 불러올 수 없습니다.");
+        return;
+    }
+
+    const imageData = canvas.toDataURL("image/png");
+    setCapturedImgForConfirm(imageData);
+    setModalMessage(""); // 이전 메시지 초기화
+    setIsConfirmOpen(true);
+};
 
     const handleSyncData = async () => {
         try {
@@ -327,14 +323,9 @@ const TryOn = () => {
                 ...product,
                 brandName: brandName 
             }));
+
             setProducts(enrichedData);
-            if (enrichedData.length > 0) {
-                setSelectedProduct(enrichedData[0]); // 브랜드 변경 시 첫 번째 제품 자동 선택
-            }
-            // setProducts(res.data);
-            // if (res.data && res.data.length > 0) {
-            //     setSelectedProduct(res.data[0]);
-            // }
+
         } catch (err) {
             console.error("❌ 브랜드 변경 실패:", err);
         }
@@ -373,10 +364,6 @@ const TryOn = () => {
                     <ModalOverlay onClick={closeConfirmModal}>
                         <ModalContent onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                {/* <h3>Save your Radiance?</h3>
-                                <p>촬영한 시착 사진을 보관함에 저장하시겠습니까?</p> */}
-                                {/* <h3>{capturedImgForConfirm ? "Save your Radiance?" : "TOUT LIP Notice"}</h3>
-                                <p>{capturedImgForConfirm ? "촬영한 시착 사진을 보관함에 저장하시겠습니까?" : modalMessage}</p> */}
                                 <h3>{capturedImgForConfirm ? "Save your Radiance?" : "TOUT LIP Notice"}</h3>
                                 <p>{modalMessage || "촬영한 시착 사진을 보관함에 저장하시겠습니까?"}</p>
                             </div>
@@ -388,15 +375,6 @@ const TryOn = () => {
                                     {/* <LuxuryFrame /> */}
                                 </div>
                             )}
-
-                            {/* <div className="modal-actions">
-                                <button className="btn-cancel" onClick={closeConfirmModal} disabled={isSaving}>
-                                    취소
-                                </button>
-                                <button className="btn-save" onClick={confirmSave} disabled={isSaving}>
-                                    {isSaving ? '저장 중...' : '저장하기'}
-                                </button>
-                            </div> */}
 
                             <div className="modal-actions">
                                 {capturedImgForConfirm ? (
@@ -417,35 +395,44 @@ const TryOn = () => {
                 <SelectionPanel>
                     {/* 1. 필터 섹션: 브랜드 선택 및 텍스처 버튼 */}
                     <FilterSection>
-                        <select 
-                            onChange={handleBrandChange} 
-                            // 선택된 제품의 브랜드명을 대문자로 표시하여 일관성 유지
-                            // value={selectedProduct?.brandName?.toUpperCase() || ''}
-                            value={currentBrand}
-                            style={{ 
-                                minWidth: '130px', 
-                                padding: '8px 12px',
-                                backgroundColor: '#1e1e1e', 
-                                color: '#f7e7ce', 
-                                borderRadius: '20px',
-                                border: '1px solid #333',
-                                appearance: 'auto' 
-                            }}
-                        >
-                            {brands.length === 0 ? (
-                                <option value="">Loading...</option>
-                            ) : (
-                                brands.map((brand, index) => {
-                                    const name = typeof brand === 'object' ? brand.name : brand;
-                                    const id = typeof brand === 'object' ? brand.brandId : index;
-                                    return (
-                                        <option key={id} value={name}>
-                                            {name}
-                                        </option>
-                                    );
-                                })
-                            )}
-                        </select>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <select 
+                                onChange={handleBrandChange} 
+                                // 선택된 제품의 브랜드명을 대문자로 표시하여 일관성 유지
+                                // value={selectedProduct?.brandName?.toUpperCase() || ''}
+                                value={currentBrand}
+                                style={{ 
+                                    minWidth: '130px', 
+                                    padding: '8px 12px',
+                                    backgroundColor: '#1e1e1e', 
+                                    color: '#f7e7ce', 
+                                    borderRadius: '20px',
+                                    border: '1px solid #333',
+                                    appearance: 'auto' 
+                                }}
+                            >
+                                {brands.length === 0 ? (
+                                    <option value="">Loading...</option>
+                                ) : (
+                                    brands.map((brand, index) => {
+                                        const name = typeof brand === 'object' ? brand.name : brand;
+                                        const id = typeof brand === 'object' ? brand.brandId : index;
+                                        return (
+                                            <option key={id} value={name}>
+                                                {name}
+                                            </option>
+                                        );
+                                    })
+                                )}
+                            </select>
+                            <ResetButton onClick={handleReset} title="Clear Selection">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                    <path d="M3 3v5h5" />
+                                </svg>
+                                <span>Reset</span>
+                            </ResetButton>
+                        </div>
 
                         <TextureSlider>
                             {['ALL', 'MATTE', 'GLOSS', 'SHEER', 'VELVET'].map((type) => (
@@ -461,27 +448,30 @@ const TryOn = () => {
                     </FilterSection>
 
                     {/* 2. 제품 상세 정보: 선택된 제품이 있을 때만 표시 */}
-                    {selectedProduct && (
-                        <ProductDetailInfo>
-                            {/* <div className="info-main">
-                                <h3>{selectedProduct.name}</h3>
-                            </div> */}
-                            <div className="info-main">
-                                {/* 📍 [핀셋] 객체 구조에 따라 name 또는 colorName을 참조 */}
-                                {/* <h3>{selectedProduct.name || selectedProduct.colorName || "New Shade"}</h3> */}
-                                <h3>{selectedProduct.colorName || selectedProduct.name || "New Shade"}</h3>
-                            </div>
-                            {/* <p className="brand-name">
-                                {(selectedProduct?.brandName || selectedProduct?.brand || currentBrand || 'TOUT LIP').toUpperCase()} - SELECTED LOOK
-                            </p> */}
-                            <p className="brand-name">
-                                {/* {(selectedProduct?.brandName || currentBrand).toUpperCase()} */}
-                                {(selectedProduct.brandName || selectedProduct.brand || currentBrand || 'TOUT LIP').toUpperCase()}
-                            </p>
-                        </ProductDetailInfo>
-                    )}
+                    {/* {selectedProducts.length > 0 && ( */}
+<ProductDetailInfo>
+    <div className="info-main">
+        {/* 선택된 제품이 없을 때 대체 문구 출력 및 색상 흐리게 처리 */}
+        <h3 style={{ color: selectedProducts.length > 0 ? 'white' : 'rgba(255, 255, 255, 0.3)' }}>
+            {selectedProducts.length === 2 
+                ? `${selectedProducts[0].colorName || selectedProducts[0].name} + ${selectedProducts[1].colorName || selectedProducts[1].name}`
+                : selectedProducts.length === 1
+                ? (selectedProducts[0].colorName || selectedProducts[0].name)
+                : "Select Your Shade"} 
+        </h3>
+    </div>
+    {/* 브랜드명 영역도 공간을 차지하게 하여 덜컥거림 방지 */}
+    <p className="brand-name" style={{ color: selectedProducts.length > 0 ? '#D1BA94' : '#444' }}>
+        {selectedProducts.length === 2
+            ? `${(selectedProducts[0]?.brandName || "Tout Lip").toUpperCase()} & ${(selectedProducts[1]?.brandName || "Tout Lip").toUpperCase()} MIX`
+            : selectedProducts.length === 1
+            ? (selectedProducts[0]?.brandName || currentBrand || "TOUT LIP").toUpperCase()
+            : "TOUT LIP RADIANCE"} {/* 👈 브랜드명 자리에 들어갈 대체 글자 */}
+    </p>
+</ProductDetailInfo>
+                    {/* )} */}
 
-                    {/* 3. 컬러 슬라이더: 현재 불러온 products 리스트를 렌더링 */}
+                    {/* 3. 컬러 슬라이더: 현재 불러온 products 리<스트를 렌더링 */}
                     <ColorSlider>
                         {products && products.length > 0 ? (
                             (() => {
@@ -507,14 +497,19 @@ const TryOn = () => {
 
                                 return filtered.slice(0, 20).map((product, idx) => {
                                     const colorValue = product.hexCode || (product.product_colors && product.product_colors[0]?.hex_value) || '#333';
+                                    // const isSelected = selectedProducts.some(p => p.id === product.id);
+                                    const selectedIndex = selectedProducts.findIndex(p => p.id === product.id);
+                                    const isSelected = selectedIndex !== -1;
                                     
                                     return (
-                                        <ColorCard 
-                                            // [핀셋 교정] Key값에 idx를 조합하여 중복 경고를 완전히 제거합니다.
-                                            key={`${product.id || 'color'}-${idx}`} 
-                                            onClick={() => setSelectedProduct(product)}
-                                        >
-                                            <ChipWrapper $color={colorValue} $active={selectedProduct?.id === product.id}>
+                                        <ColorCard key={`${product.id || 'color'}-${idx}`} onClick={() => handleProductSelect(product)}>
+                                            <ChipWrapper $color={colorValue} $active={isSelected} style={{ position: 'relative' }}>
+                                                {/* [핀셋 추가] Base/Point 뱃지 */}
+                                                {isSelected && (
+                                                    <SelectionBadge>
+                                                        {selectedIndex === 0 ? 'Base' : 'Point'}
+                                                    </SelectionBadge>
+                                                )}
                                                 <div className="chip-inner" />
                                             </ChipWrapper>
                                         </ColorCard>
@@ -533,14 +528,29 @@ const TryOn = () => {
 
 
 // --- 입술 렌더링 유틸리티 함수 (하단 배치) ---
-const drawLips = (ctx, landmarks, color, texture) => {
+const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => {
     const UPPER_LIP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78];
     const LOWER_LIP = [146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78];
+
+    const alpha = 0.5; 
+    let displayLandmarks = landmarks;
+
+    // if (prevLandmarksRef.current) {
+    if (prevLandmarksRef && prevLandmarksRef.current) {
+        displayLandmarks = landmarks.map((point, i) => ({
+            x: prevLandmarksRef.current[i].x * (1 - alpha) + point.x * alpha,
+            y: prevLandmarksRef.current[i].y * (1 - alpha) + point.y * alpha
+        }));
+    }
+
+    if (prevLandmarksRef) {
+        prevLandmarksRef.current = displayLandmarks;
+    }
 
     const drawPath = (indices) => {
         ctx.beginPath();
         indices.forEach((idx, i) => {
-            const point = landmarks[idx];
+            const point = displayLandmarks[idx];
             if (i === 0) ctx.moveTo(point.x * ctx.canvas.width, point.y * ctx.canvas.height);
             else ctx.lineTo(point.x * ctx.canvas.width, point.y * ctx.canvas.height);
         });
@@ -548,32 +558,40 @@ const drawLips = (ctx, landmarks, color, texture) => {
     };
 
     // [핀셋 교정] 텍스처별 맞춤형 렌더링 설정
-    if (texture === 'glossy') {
-        ctx.globalAlpha = 0.45; // 투명하게 반짝이는 느낌
-    } else if (texture === 'velvet') {
-        ctx.globalAlpha = 0.75; // 보송하고 진한 발색
-    } else {
-        ctx.globalAlpha = 0.6;  // 기본 매트 발색
+    // if (texture === 'glossy') {
+    //     ctx.globalAlpha = 0.45; // 투명하게 반짝이는 느낌
+    // } else if (texture === 'velvet') {
+    //     ctx.globalAlpha = 0.75; // 보송하고 진한 발색
+    // } else {
+    //     ctx.globalAlpha = 0.6;  // 기본 매트 발색
+    // }
+
+    // ctx.fillStyle = color;
+    // drawPath(UPPER_LIP);
+    // ctx.fill();
+    // drawPath(LOWER_LIP);
+    // ctx.fill();
+
+    // 기본 투명도 설정
+    ctx.globalAlpha = texture === 'glossy' ? 0.45 : 0.6;
+
+    // 1. 첫 번째 베이스 컬러 렌더링
+    ctx.fillStyle = color1;
+    drawPath(UPPER_LIP); ctx.fill();
+    drawPath(LOWER_LIP); ctx.fill();
+
+    // 2. 두 번째 컬러가 있을 경우 블렌딩
+    if (color2) {
+        // 입술 영역 내에서만 색이 섞이도록 설정
+        ctx.globalCompositeOperation = 'source-atop'; 
+        ctx.globalAlpha = texture === 'glossy' ? 0.3 : 0.4; // 블렌딩 비율 조절
+        ctx.fillStyle = color2;
+        drawPath(UPPER_LIP); ctx.fill();
+        drawPath(LOWER_LIP); ctx.fill();
     }
 
-    ctx.fillStyle = color;
-    drawPath(UPPER_LIP);
-    ctx.fill();
-    drawPath(LOWER_LIP);
-    ctx.fill();
-
-    // [핵심] Glossy일 때만 입술 중앙에 샴페인 골드 하이라이트 추가
-    if (texture === 'glossy') {
-        ctx.globalAlpha = 0.3;
-        ctx.fillStyle = "#F7E7CE"; 
-        ctx.beginPath();
-        // 아랫입술 중앙(landmarks[17]) 근처에 하이라이트 생성
-        const centerX = landmarks[17].x * ctx.canvas.width;
-        const centerY = landmarks[17].y * ctx.canvas.height;
-        ctx.ellipse(centerX, centerY, 20, 8, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
+    // 설정 초기화 (반드시 수행)
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1.0; // 설정 초기화
 };
 
@@ -786,7 +804,7 @@ const ChipWrapper = styled.div.attrs(props => ({
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* 선택되었을 때만 이미지처럼 얇은 골드 테두리 추가 */
-    border: ${props => props.$active ? '1.5px solid #D1BA94' : '1.5px solid transparent'};
+    border: ${props => props.$active ? '2px solid #D1BA94' : '2px solid transparent'};
     padding: 4px; /* 테두리와 안쪽 칩 사이의 여백 */
 
     .chip-inner {
@@ -932,6 +950,49 @@ const ModalContent = styled.div`
             background: #222; color: #888; border: 1px solid #333;
         }
     }
+`;
+
+// [핀셋 추가] 컬러칩 위에 Base/Point를 표시할 배지 스타일
+const SelectionBadge = styled.div`
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%); /* 중앙 정렬 */
+    background: ${props => props.theme.colors.champagneGold || '#D1BA94'};
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+`;
+
+// [핀셋 추가] Reset 버튼 스타일
+const ResetButton = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #1e1e1e;
+    color: #888;
+    border: 1px solid #333;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: #2a2a2a;
+        color: ${props => props.theme.colors.champagneGold};
+        border-color: ${props => props.theme.colors.champagneGold};
+    }
+
+    svg { transition: transform 0.4s ease; }
+    &:active svg { transform: rotate(-180deg); }
 `;
 
 export default TryOn;
