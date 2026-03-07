@@ -532,15 +532,32 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
     const UPPER_LIP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78];
     const LOWER_LIP = [146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78];
 
-    const alpha = 0.5; 
+    const baseAlpha = 0.5; 
     let displayLandmarks = landmarks;
 
     // if (prevLandmarksRef.current) {
-    if (prevLandmarksRef && prevLandmarksRef.current) {
-        displayLandmarks = landmarks.map((point, i) => ({
-            x: prevLandmarksRef.current[i].x * (1 - alpha) + point.x * alpha,
-            y: prevLandmarksRef.current[i].y * (1 - alpha) + point.y * alpha
-        }));
+    // if (prevLandmarksRef && prevLandmarksRef.current) {
+    //     displayLandmarks = landmarks.map((point, i) => ({
+    //         x: prevLandmarksRef.current[i].x * (1 - alpha) + point.x * alpha,
+    //         y: prevLandmarksRef.current[i].y * (1 - alpha) + point.y * alpha
+    //     }));
+    // }
+    if (prevLandmarksRef && prevLandmarksRef.current && prevLandmarksRef.current.length === landmarks.length) {
+        displayLandmarks = landmarks.map((point, i) => {
+            const prevPoint = prevLandmarksRef.current[i];
+            
+            // [핵심 로직] 현재 좌표와 이전 좌표의 거리(움직임)를 계산
+            const distance = Math.sqrt(Math.pow(point.x - prevPoint.x, 2) + Math.pow(point.y - prevPoint.y, 2));
+            
+            // 움직임이 클수록(0.01 이상) alpha를 높여(최대 0.9) 즉각적으로 따라오게 함
+            // 움직임이 작을수록 baseAlpha를 사용하여 떨림을 방지함
+            const dynamicAlpha = distance > 0.01 ? Math.min(0.9, baseAlpha + distance * 10) : baseAlpha;
+
+            return {
+                x: prevPoint.x * (1 - dynamicAlpha) + point.x * dynamicAlpha,
+                y: prevPoint.y * (1 - dynamicAlpha) + point.y * dynamicAlpha
+            };
+        });
     }
 
     if (prevLandmarksRef) {
@@ -556,21 +573,6 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
         });
         ctx.closePath();
     };
-
-    // [핀셋 교정] 텍스처별 맞춤형 렌더링 설정
-    // if (texture === 'glossy') {
-    //     ctx.globalAlpha = 0.45; // 투명하게 반짝이는 느낌
-    // } else if (texture === 'velvet') {
-    //     ctx.globalAlpha = 0.75; // 보송하고 진한 발색
-    // } else {
-    //     ctx.globalAlpha = 0.6;  // 기본 매트 발색
-    // }
-
-    // ctx.fillStyle = color;
-    // drawPath(UPPER_LIP);
-    // ctx.fill();
-    // drawPath(LOWER_LIP);
-    // ctx.fill();
 
     // 기본 투명도 설정
     ctx.globalAlpha = texture === 'glossy' ? 0.45 : 0.6;
