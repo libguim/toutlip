@@ -25,12 +25,17 @@ public class CommunityPost extends BaseTimeEntity {
     String brandName;
     String productName;
 
+    @Builder.Default
     @OneToMany(
             mappedBy = "communityPost",
             cascade = {CascadeType.PERSIST, CascadeType.MERGE},
             orphanRemoval = false
     )
     private List<LipLog> lipLogs = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "communityPost", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<PostLike> postLikes = new ArrayList<>();
 
     @Builder.Default
     private Integer viewCount = 0;

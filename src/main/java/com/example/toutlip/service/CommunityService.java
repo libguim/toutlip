@@ -2,6 +2,8 @@ package com.example.toutlip.service;
 
 import com.example.toutlip.domain.*;
 import com.example.toutlip.dto.CommunityDTO;
+import com.example.toutlip.dto.LipLogDTO;
+import com.example.toutlip.dto.LipLogDTO.LipLogResponseDTO;
 import com.example.toutlip.repository.CommunityPostRepository;
 import com.example.toutlip.repository.LipLogRepository;
 import com.example.toutlip.repository.PostLikeRepository;
@@ -59,15 +61,6 @@ public class CommunityService {
         post.setViewCount(post.getViewCount() + 1);
     }
 
-    /**
-     * 4. [Update] 좋아요 클릭 (추가 기능)
-     */
-//    public void incrementLikeCount(Integer id) {
-//        CommunityPost post = communityPostRepository.findById(id)
-//                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
-//
-//        post.setLikeCount(post.getLikeCount() + 1); //
-//    }
 
     public void toggleLike(Integer postId, Integer userId) {
         CommunityPost post = communityPostRepository.findById(postId)
@@ -119,6 +112,10 @@ public class CommunityService {
             post.getLipLogs().clear();
         }
 
+        if (post.getPostLikes() != null) {
+            post.getPostLikes().clear();
+        }
+
         communityPostRepository.delete(post);
         // flush를 통해 삭제 명령을 즉시 실행하여 유령 데이터 생성을 막습니다.
         communityPostRepository.flush();
@@ -128,29 +125,44 @@ public class CommunityService {
      * 내부 헬퍼 메서드: 엔티티를 DTO로 변환
      */
     private CommunityDTO.CommunityPostResponseDTO convertToResponseDTO(CommunityPost post) {
+
+        System.out.println("=== 🔍 디버깅: 게시글 데이터 확인 ===");
+        System.out.println("게시글 ID: " + post.getId() + " 의 사진(lipLogs) 개수: " + (post.getLipLogs() != null ? post.getLipLogs().size() : 0));
+
         // 1. 기본 매핑 (필드명이 같은 viewCount, likeCount 등은 자동 매핑됨)
         CommunityDTO.CommunityPostResponseDTO dto = modelMapper.map(post, CommunityDTO.CommunityPostResponseDTO.class);
 
         // 2. 이름이 다른 postId는 명시적 세팅
         dto.setPostId(post.getId());
 
-        // 3. 리스트에서 첫 번째 정보를 추출하여 DTO 필드에 맞게 세팅
-        post.getLipLogs().stream().findFirst().ifPresent(log -> {
-            if (log.getUser() != null) {
-                dto.setNickname(log.getUser().getNickname());
-                dto.setAuthorPersonalColor(log.getUser().getPersonalColorType().name());
+        if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
+            LipLog firstLog = post.getLipLogs().get(0);
+            if (firstLog.getUser() != null) {
+                dto.setNickname(firstLog.getUser().getNickname());
+                // 필요한 경우 프로필 이미지 등 추가 세팅
             }
 
-            dto.setPhotoUrl(log.getPhotoUrl());
+            dto.setLipLogs(post.getLipLogs().stream().map(log -> {
+                LipLogDTO.LipLogResponseDTO logDto = new LipLogDTO.LipLogResponseDTO();
+                logDto.setLogId(log.getId());
+                logDto.setPhotoUrl(log.getPhotoUrl());
 
-            // 📍 [수정 포인트] LipLog에 직접 필드가 없다면 연관된 엔티티에서 가져오기
-            // 아래 코드는 예시입니다. 모아나의 Product 엔티티 구조에 맞춰주세요!
-            if (log.getProductColor() != null) {
-                dto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
-                dto.setProductName(log.getProductColor().getProduct().getName());
-                dto.setColorName(log.getProductColor().getColorName());
-            }
-        });
+                // 📍 [핀셋 수정] Base 컬러 정보 추출
+                if (log.getBaseColor() != null) {
+                    logDto.setBaseHex(log.getBaseColor().getHexCode());
+                    logDto.setBaseBrand(log.getBaseColor().getProduct().getBrand().getName());
+                    logDto.setBaseColorName(log.getBaseColor().getColorName());
+                }
+
+                // 📍 [핀셋 수정] Point 컬러 정보 추출
+                if (log.getPointColor() != null) {
+                    logDto.setPointHex(log.getPointColor().getHexCode());
+                    logDto.setPointBrand(log.getPointColor().getProduct().getBrand().getName());
+                    logDto.setPointColorName(log.getPointColor().getColorName());
+                }
+                return logDto;
+            }).collect(Collectors.toList()));
+        }
 
         return dto;
     }

@@ -17,11 +17,21 @@ const Profile = () => {
     const [selectedLogIds, setSelectedLogIds] = useState([]); // 선택된 사진 ID들
     const [totalLikes, setTotalLikes] = useState(0); // 📍 [핀셋 추가] 전체 좋아요 합계
 
+// 📍 [핀셋 추가] 모달 제어를 위한 상태와 닫기 함수
+const [alertModal, setAlertModal] = useState({ 
+    isOpen: false, 
+    type: 'confirm', 
+    message: '', 
+    onConfirm: null 
+});
+
+const closeAlertModal = () => setAlertModal(prev => ({ ...prev, isOpen: false }));
+
 
     // 📍 [핀셋 추가] 선택 토글 함수
     const toggleSelectLog = (logId) => {
         setSelectedLogIds(prev => 
-            prev.includes(logId) 
+            prev.includes(logId)
                 ? prev.filter(id => id !== logId) 
                 : [...prev, logId]
         );
@@ -36,28 +46,48 @@ const Profile = () => {
         }
     };
 
-    // 📍 [핀셋 추가] 일괄 삭제 실행
-    const handleDeleteSelected = async () => {
-        if (selectedLogIds.length === 0) return;
-        if (!window.confirm(`선택한 ${selectedLogIds.length}개의 기록을 모두 삭제할까요?`)) return;
 
-        setLoading(true);
-        try {
-            // 병렬 삭제 처리
-            await Promise.all(
-                selectedLogIds.map(id => axios.delete(`http://localhost:8080/api/liplogs/${id}`))
-            );
-            alert("선택한 기록들이 모두 삭제되었습니다. ✨");
-            setSelectedLogIds([]);
-            setIsEditMode(false);
-            fetchMyLogs(); // 목록 갱신
-        } catch (err) {
-            console.error("일괄 삭제 실패:", err);
-            alert("일부 항목 삭제 중 에러가 발생했습니다.");
-        } finally {
-            setLoading(false);
+    const handleDeleteSelected = async () => {
+    if (selectedLogIds.length === 0) return;
+
+    // 📍 [핀셋 수정] 기본 confirm 대신 커스텀 모달 호출
+    setAlertModal({
+        isOpen: true,
+        type: 'confirm',
+        message: `선택한 ${selectedLogIds.length}개의 기록을 모두 삭제할까요? ✨\n(관련된 피드 게시글도 함께 삭제됩니다)`,
+        onConfirm: async () => {
+            closeAlertModal(); 
+            setLoading(true);
+            try {
+                for (const id of selectedLogIds) {
+                    try {
+                        await axios.delete(`http://localhost:8080/api/liplogs/${id}`);
+                    } catch (err) {
+                        if (err.response?.status === 404 || err.response?.status === 500) continue;
+                        throw err;
+                    }
+                }
+                
+                // 성공 알림 모달
+                setAlertModal({
+                    isOpen: true,
+                    type: 'alert',
+                    message: "선택한 기록들이 모두 삭제되었습니다. 💄",
+                    onConfirm: () => {
+                        setSelectedLogIds([]);
+                        setIsEditMode(false);
+                        fetchMyLogs();
+                        closeAlertModal();
+                    }
+                });
+            } catch (err) {
+                console.error("일괄 삭제 실패:", err);
+            } finally {
+                setLoading(false);
+            }
         }
-    };
+    });
+};
 
     // Profile.jsx 상단 상태 정의 아래에 추가
     const fetchMyLogs = async () => {
@@ -98,18 +128,18 @@ useEffect(() => {
         setIsModalOpen(true);
     };
 
-
     const handleDeleteWithConfirm = (logId) => {
-        // 📍 사용자가 한 번 더 생각하게 만드는 시각적 장치
-        const isConfirmed = window.confirm(
-            "⚠️ 정말로 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, [립로그 탭]에 게시된 관련 포스트도 모두 삭제됩니다."
-        );
-
-        if (isConfirmed) {
-            // 📍 확인되었을 때만 우리가 만든 '강력한 삭제' 로직 실행
-            handleDelete(logId);
-            setViewLog(null); // 모달 닫기
-        }
+        // 📍 [핀셋 수정] 브라우저 confirm 대신 럭셔리 커스텀 모달 호출
+        setAlertModal({
+            isOpen: true,
+            type: 'confirm',
+            message: "⚠️ 정말로 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, [립로그 탭]에 게시된 관련 포스트도 모두 삭제됩니다. ✨",
+            onConfirm: async () => {
+                closeAlertModal();      // 팝업 먼저 닫기
+                await handleDelete(logId); // 기존 삭제 로직 실행
+                setViewLog(null);        // 상세 보기 모달 닫기
+            }
+        });
     };
 
 
@@ -237,41 +267,42 @@ useEffect(() => {
         }
     };
 
-    // 📍 삭제 핸들러: logId로 정확한 삭제 요청 전송
-    // const handleDelete = async (logId) => {
-    //     if (!logId || !window.confirm("이 소중한 기록을 삭제하시겠어요?")) return;
 
-    //     try {
-    //         await axios.delete(`http://localhost:8080/api/liplogs/${logId}`);
-    //         setMyLogs(prev => prev.filter(log => log.logId !== logId));
-    //         alert("기록이 깔끔하게 삭제되었습니다. 💄");
-    //     } catch (err) {
-    //         console.error("삭제 실패:", err);
-    //     }
-    // };
-// 📍 Profile.jsx 내부의 handleDelete 함수를 이렇게 수정해줘
-
-// Profile.jsx 내 handleDelete 함수 교정
-// Profile.jsx 163라인 부근
 const handleDelete = async (logId) => {
-    // 📍 [체크] 전달받는 값이 post.postId가 아니라 log.logId여야 합니다!
-    if (!logId || !window.confirm("이 기록을 삭제하면 립로그 탭의 게시글도 함께 사라집니다.")) return;
+    if (!logId) return;
 
-    try {
-        console.log(`%c[원칙 집행] 삭제 시도 ID: ${logId}`, "color: #e67e22; font-weight: bold;");
-        const response = await axios.delete(`http://localhost:8080/api/liplogs/${logId}`);
+    // 📍 [핀셋 수정] 브라우저 confirm 대신 우리가 만든 럭셔리 모달 호출
+    setAlertModal({
+        isOpen: true,
+        type: 'confirm',
+        message: "이 기록을 삭제하면 립로그 탭의 게시글도 함께 사라집니다. ✨",
+        onConfirm: async () => {
+            closeAlertModal();
+            try {
+                const response = await axios.delete(`http://localhost:8080/api/liplogs/${logId}`);
 
-        if (response.status === 200) {
-            // UI 업데이트
-            setMyLogs(prev => prev.filter(log => log.logId !== logId));
-            setViewLog(null); 
-            alert("이미지와 관련 게시글이 모두 삭제되었습니다. ✨");
+                if (response.status === 200) {
+                    setMyLogs(prev => prev.filter(log => log.logId !== logId));
+                    setViewLog(null); 
+                    
+                    setAlertModal({
+                        isOpen: true,
+                        type: 'alert',
+                        message: "이미지와 관련 게시글이 모두 삭제되었습니다. 💄",
+                        onConfirm: closeAlertModal
+                    });
+                }
+            } catch (err) {
+                console.error("삭제 실패:", err.response?.data);
+                setAlertModal({
+                    isOpen: true,
+                    type: 'alert',
+                    message: "삭제 실패: 서버 설정을 확인해 주세요.",
+                    onConfirm: closeAlertModal
+                });
+            }
         }
-    } catch (err) {
-        // console.error("삭제 실패 상세:", err.response?.data || err.message);
-        console.error("삭제 실패: 혹시 게시글에서 사용 중인 사진인가요?", err.response?.data);
-        alert("삭제 실패: 서버 설정을 확인해 주세요.");
-    }
+    });
 };
 
 // Profile.jsx 내 삭제 핸들러 수정
@@ -370,151 +401,6 @@ const handleDeleteLog = async (logId) => {
         );
     }
 
-    // B. 로그인 후 화면 (기존 갤러리 로직 유지)
-    // return (
-    //     <ProfileContainer>
-    //         <HeaderSection>
-    //             <ProfileImageWrapper>
-    //                 <img src="https://images.unsplash.com/photo-1581883556531-e5f8027f557f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=980" alt="Profile" />
-    //             </ProfileImageWrapper>
-    //             <UserName>{nickname}</UserName> 
-    //             <UserGrade>VVIP MEMBER</UserGrade>
-    //             <LogoutBtn onClick={() => { 
-    //                 localStorage.clear(); 
-    //                 setUserId(null); 
-    //                 setNickname("Moana"); // 로그아웃 시 초기화
-    //             }}>LOGOUT</LogoutBtn>
-    //         </HeaderSection>
-
-    //         <StatsContainer>
-    //             <StatItem>
-    //                 {/* 1. myGalleryLogs 대신 현재 상태인 myLogs를 사용합니다. */}
-    //                 <div className="count">{myLogs.length}</div>
-    //                 <div className="label">MY LOGS</div>
-    //             </StatItem>
-    //             <StatItem>
-    //                 {/* 2. SHARED는 내 로그들(myLogs) 중 isPublic이 true인 것만 필터링해서 카운트합니다. */}
-    //                 <div className="count">{myLogs.filter(log => log.isPublic).length}</div>
-    //                 <div className="label">SHARED</div>
-    //             </StatItem>
-    //             <StatItem>
-    //                 <div className="count">24</div> {/* 추후 좋아요 API 연결 */}
-    //                 <div className="label">FAVORITES</div>
-    //             </StatItem>
-    //         </StatsContainer>
-
-    //         <ContentSection>
-    //             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-    //                 <SectionTitle style={{ margin: 0 }}><GridIcon /> MY GALLERY</SectionTitle>
-    //                 <button 
-    //                     onClick={() => { setIsEditMode(!isEditMode); setSelectedLogIds([]); }}
-    //                     style={{ background: 'none', border: 'none', color: '#D1BA94', fontSize: '0.8rem', cursor: 'pointer' }}
-    //                 >
-    //                     {isEditMode ? 'CANCEL' : 'EDIT'}
-    //                 </button>
-    //             </div>
-
-    //             {/* 📍 [핀셋 추가] 편집 모드 상단 바 (image_511ad6.png 컨셉) */}
-    //             {isEditMode && (
-    //                 <EditActionBar>
-    //                     <div className="left" onClick={toggleSelectAll}>
-    //                         <div className={`checkbox ${selectedLogIds.length === myLogs.length ? 'checked' : ''}`} />
-    //                         <span>ALL ({selectedLogIds.length})</span>
-    //                     </div>
-    //                     <button className="delete-btn" onClick={handleDeleteSelected} disabled={selectedLogIds.length === 0}>
-    //                         DELETE SELECTED
-    //                     </button>
-    //                 </EditActionBar>
-    //             )}
-
-    //             {loading ? (
-    //                 <LoadingTextSmall>Loading your looks...</LoadingTextSmall>
-    //             ) : (
-    //                 <GalleryGrid>
-    //                     {myLogs.map((log) => (
-    //                         <GalleryItem 
-    //                             key={log.logId}
-    //                             $isSelected={selectedLogIds.includes(log.logId)}
-    //                             onClick={() => isEditMode ? toggleSelectLog(log.logId) : setViewLog(log)}
-    //                         >
-    //                             <LogImage src={log.photoUrl} alt="Lip Log" />
-                                
-    //                             {/* 📍 [핀셋 추가] 선택 모드 시 체크박스 노출 */}
-    //                             {isEditMode && (
-    //                                 <div className={`select-indicator ${selectedLogIds.includes(log.logId) ? 'checked' : ''}`}>
-    //                                     {selectedLogIds.includes(log.logId) && '✓'}
-    //                                 </div>
-    //                             )}
-                                
-    //                             {log.isPublic && <div className="shared-badge">SHARED</div>}
-    //                         </GalleryItem>
-    //                     ))}
-    //                 </GalleryGrid>
-    //             )}
-    //         </ContentSection>
-
-
-    //         {viewLog && (
-    //             <ModalOverlay onClick={() => setViewLog(null)}>
-    //                 <DetailModalContent onClick={(e) => e.stopPropagation()}>
-    //                     <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
-    //                     <DetailImage src={viewLog.photoUrl} alt="Detail View" />
-                        
-    //                     <ModalActionArea>
-    //                         <div className="info">
-    //                             {/* 📍 날짜 추가: 브랜드명 위에 작고 연하게 배치하면 세련돼 보여 */}
-    //                             <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '4px' }}>
-    //                                 {new Date(viewLog.createdAt).toLocaleDateString()}
-    //                             </p>
-    //                             {/* <h4>{viewLog.brandName}</h4>
-    //                             <p>{viewLog.productName}</p> */}
-    //                             <h4>{(viewLog.brandName || 'TOUT LIP').toUpperCase()}</h4>
-    //                             <p>{viewLog.colorName || viewLog.productName || 'Custom Shade'}</p>
-    //                         </div>
-
-    //                         {/* 📍 삭제 버튼 추가: 기존 SAVE IMAGE 버튼과 나란히 혹은 아래에 배치 */}
-
-
-    //                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-
-    //                             <button 
-    //                                 className="delete-btn"
-    //                                 onClick={() => handleDeleteWithConfirm(viewLog.logId)}
-    //                                 style={{
-    //                                     // 📍 '신중함'을 주는 디자인: 배경색 없이 테두리만 두어 '조심스러운' 느낌 강조
-    //                                     background: 'transparent',
-    //                                     border: '1.5px solid #ff4d4f',
-    //                                     color: '#ff4d4f',
-    //                                     /* 📍 [핀셋 추가] 요청하신 사이즈와 곡률 반영 */
-    //                                     padding: '10px 18px',
-    //                                     borderRadius: '8px',
-                                        
-    //                                     /* 📍 가독성을 위한 추가 설정 */
-    //                                     cursor: 'pointer',
-    //                                     fontSize: '13px',
-    //                                     fontWeight: '600',
-    //                                     transition: 'all 0.2s'
-    //                                 }}
-    //                             >
-    //                                 DELETE
-    //                             </button>
-
-    //                             <DownloadLink 
-    //                                 href={viewLog.photoUrl} 
-    //                                 download={`ToutLip_${viewLog.logId}.png`}
-    //                             >
-    //                                 SAVE IMAGE
-    //                             </DownloadLink>
-
-    //                         </div>
-    //                     </ModalActionArea>
-    //                 </DetailModalContent>
-    //             </ModalOverlay>
-    //         )}
-
-    //     </ProfileContainer>
-    // );
-
 
     return (
         <ProfileContainer>
@@ -609,20 +495,55 @@ const handleDeleteLog = async (logId) => {
                         <CloseBtn onClick={() => setViewLog(null)}>✕</CloseBtn>
                         <DetailImage src={viewLog.photoUrl} alt="Detail View" />
                         
-                        <ModalActionArea>
-                            <div className="info">
-                                <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '4px' }}>
+                        <ModalActionArea style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', // 📍 요소를 위에서 아래로 쌓음
+                            alignItems: 'flex-start', 
+                            gap: '20px',             // 📍 섹션 간 간격 확보
+                            background: '#000',
+                            padding: '24px'
+                        }}>
+                            <div className="info" style={{ width: '100%' }}>
+                                <p style={{ fontSize: '12px', opacity: 0.6, marginBottom: '6px' }}>
                                     {new Date(viewLog.createdAt).toLocaleDateString()}
                                 </p>
-                                <h4>{(viewLog.brandName || 'TOUT LIP').toUpperCase()}</h4>
-                                <p>{viewLog.colorName || viewLog.productName || 'Custom Shade'}</p>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <div style={{ 
+                                display: 'flex', 
+                                flexWrap: 'wrap', 
+                                gap: '10px', 
+                                width: '100%',
+                                // borderTop: '1px solid #222', // 📍 경계선 추가로 깔끔하게
+                                // borderBottom: '1px solid #222'
+                            }}>
+                                {viewLog.baseHex && (
+                                    <span style={chipStyle}>
+                                        <div style={{ ...dotStyle, backgroundColor: viewLog.baseHex }} />
+                                        <span style={{ opacity: 0.6, fontSize: '0.6rem' }}>BASE</span>
+                                        <span style={{ color: '#fff' }}>
+                                            {viewLog.baseBrand} | {viewLog.baseColorName}
+                                        </span>
+                                    </span>
+                                )}
+
+                                {viewLog.pointHex && (
+                                    <span style={chipStyle}>
+                                        <div style={{ ...dotStyle, backgroundColor: viewLog.pointHex }} />
+                                        <span style={{ opacity: 0.6, fontSize: '0.6rem' }}>POINT</span>
+                                        <span style={{ color: '#fff' }}>
+                                            {viewLog.pointBrand} | {viewLog.pointColorName}
+                                        </span>
+                                    </span>
+                                )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', width: '100%', justifyContent: 'space-between', marginTop: '10px' }}>
                                 <button 
                                     className="delete-btn"
                                     onClick={() => handleDeleteWithConfirm(viewLog.logId)}
                                     style={{
+                                        flex: 1, // 📍 버튼 크기 균등 배분
                                         background: 'transparent',
                                         border: '1.5px solid #ff4d4f',
                                         color: '#ff4d4f',
@@ -630,8 +551,7 @@ const handleDeleteLog = async (logId) => {
                                         borderRadius: '8px',
                                         cursor: 'pointer',
                                         fontSize: '13px',
-                                        fontWeight: '600',
-                                        transition: 'all 0.2s'
+                                        fontWeight: '600'
                                     }}
                                 >
                                     DELETE
@@ -639,14 +559,46 @@ const handleDeleteLog = async (logId) => {
                                 <DownloadLink 
                                     href={viewLog.photoUrl} 
                                     download={`ToutLip_${viewLog.logId}.png`}
+                                    style={{ flex: 1, textAlign: 'center', padding: '12px' }}
                                 >
                                     SAVE IMAGE
                                 </DownloadLink>
                             </div>
+
                         </ModalActionArea>
                     </DetailModalContent>
                 </ModalOverlay>
             )}
+
+            {alertModal.isOpen && (
+                <ModalOverlay onClick={closeAlertModal}>
+                    <CustomAlertContent onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 style={{ color: '#D1BA94', fontFamily: 'serif', fontSize: '1.2rem', marginBottom: '12px', letterSpacing: '2px' }}>
+                                {alertModal.type === 'confirm' ? "TOUT LIP CONFIRM" : "TOUT LIP NOTICE"}
+                            </h3>
+                            <p style={{ color: '#efefef', fontSize: '0.9rem', marginBottom: '25px', lineHeight: '1.6', whiteSpace: 'pre-line' }}>
+                                {alertModal.message}
+                            </p>
+                        </div>
+                        <div className="modal-actions" style={{ display: 'flex', gap: '12px' }}>
+                            {alertModal.type === 'confirm' && (
+                                <button className="btn-cancel" onClick={closeAlertModal}>CANCEL</button>
+                            )}
+                            <button 
+                                className="btn-save" 
+                                onClick={() => {
+                                    if (alertModal.onConfirm) alertModal.onConfirm();
+                                    if (alertModal.type === 'alert') closeAlertModal();
+                                }}
+                            >
+                                {alertModal.type === 'confirm' ? "PROCEED" : "OK"}
+                            </button>
+                        </div>
+                    </CustomAlertContent>
+                </ModalOverlay>
+            )}
+            
         </ProfileContainer>
     );
 
@@ -683,14 +635,6 @@ const LogoutBtn = styled.button`
     padding: 4px 10px; border-radius: 4px; margin-top: 15px; cursor: pointer;
     &:hover { color: #D1BA94; border-color: #D1BA94; }
 `;
-
-// --- Styled Components ---
-
-// const ProfileContainer = styled.div`
-//     padding: 40px 24px 120px 24px;
-//     background-color: #000;
-//     min-height: 100vh;
-// `;
 
 const LoadingText = styled.div`
     height: 100vh; background: #000; color: #D1BA94;
@@ -772,38 +716,6 @@ const GalleryGrid = styled.div`
     gap: 8px; /* 간격을 좁혀서 더 세련되게 */
     padding: 0 4px;
 `;
-
-// const GalleryItem = styled.div`
-//     position: relative;
-//     width: 100%;
-//     aspect-ratio: 1 / 1;
-//     overflow: hidden;
-//     border-radius: 8px;
-//     background-color: #111;
-
-//     &:hover .overlay { opacity: 1; }
-// `;
-
-// Profile.jsx 스타일 정의 부분 (Styled-components 예시)
-
-// const GalleryItem = styled.div`
-//   position: relative;
-//   width: 100%;
-//   aspect-ratio: 1 / 1;
-//   overflow: hidden;
-//   border-radius: 8px;
-  
-//   /* 📍 [핀셋 추가] 마우스 오버 시 손가락 모양 커서로 변경 */
-//   cursor: pointer; 
-  
-//   /* 📍 추가 팁: 살짝 밝아지거나 확대되는 효과를 주면 더 생동감이 있어! */
-//   transition: transform 0.2s ease-in-out;
-  
-//   &:hover {
-//     transform: scale(1.02); /* 살짝 커지는 효과 */
-//     filter: brightness(1.1); /* 살짝 밝아지는 효과 */
-//   }
-// `;
 
 const LogOverlay = styled.div`
     position: absolute;
@@ -888,7 +800,7 @@ const ArrowIcon = () => (
     </svg>
 );
 
-// Profile.jsx 하단에 추가
+
 const ShareButton = styled.button`
     background: ${props => props.$isPublic ? 'transparent' : '#D1BA94'};
     border: 1px solid #D1BA94;
@@ -983,7 +895,7 @@ const ModalOverlay = styled.div`
   cursor: pointer; /* 배경 클릭 시 닫히는 느낌을 줄 때 */
 `;
 
-// Profile.jsx 하단 스타일 정의 구역에 추가
+
 const EmptyMessage = styled.p`
     grid-column: 1 / -1;     /* 그리드 전체 칸을 차지하게 함 */
     text-align: center;
@@ -1020,7 +932,7 @@ const EditActionBar = styled.div`
     }
 `;
 
-// GalleryItem 수정 (Styled-components)
+
 const GalleryItem = styled.div`
     position: relative;
     aspect-ratio: 1 / 1;
@@ -1040,7 +952,7 @@ const GalleryItem = styled.div`
     }
 `;
 
-/* --- Profile.jsx 하단 스타일 정의 부분 --- */
+
 
 const ProfileContainer = styled.div`
     background-color: #000;
@@ -1075,6 +987,78 @@ const ScrollableBottomArea = styled.div`
     
     &::-webkit-scrollbar {
         display: none;  /* 깔끔한 디자인을 위해 스크롤바 숨김 */
+    }
+`;
+
+const chipStyle = {
+    color: '#D1BA94',
+    fontSize: '0.7rem',
+    fontWeight: '600',
+    background: 'rgba(209, 186, 148, 0.1)',
+    padding: '4px 10px',
+    borderRadius: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    border: '1px solid rgba(209, 186, 148, 0.2)'
+};
+
+const dotStyle = {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255, 255, 255, 0.3)'
+};
+
+
+const CustomAlertContent = styled.div`
+    background: #121212; 
+    padding: 30px; 
+    border-radius: 28px;
+    border: 1px solid #222; 
+    width: 85%; 
+    max-width: 360px; 
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.9), 0 0 15px rgba(209, 186, 148, 0.1);
+
+    h3 { 
+        color: #D1BA94; 
+        font-family: 'serif'; 
+        font-size: 1.2rem; 
+        margin-bottom: 12px; 
+        letter-spacing: 2px; 
+    }
+    
+    p { 
+        color: #efefef; 
+        font-size: 0.9rem; 
+        margin-bottom: 25px; 
+        line-height: 1.6; 
+        white-space: pre-line;
+    }
+
+    .modal-actions {
+        display: flex; 
+        gap: 12px;
+        button { 
+            flex: 1; 
+            padding: 14px; 
+            border-radius: 14px; 
+            font-size: 0.9rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            border: none; 
+            transition: all 0.2s;
+        }
+        .btn-save { 
+            background: linear-gradient(135deg, #D1BA94 0%, #EBD8B7 100%); 
+            color: #121212; 
+        }
+        .btn-cancel { 
+            background: #222; 
+            color: #888; 
+            border: 1px solid #333; 
+        }
     }
 `;
 

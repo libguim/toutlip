@@ -25,12 +25,6 @@ public class LipLogController {
     private final LipLogRepository lipLogRepository;
     private final CommunityService communityService;
 
-    // 커뮤니티 전체 피드 조회
-//    @GetMapping("/public")
-//    public ResponseEntity<List<CommunityDTO.CommunityPostResponseDTO>> getPublicLogs() {
-//        List<CommunityDTO.CommunityPostResponseDTO> logs = lipLogService.readPublicLogs();
-//        return ResponseEntity.ok(logs);
-//    }
     @GetMapping("/public")
     public ResponseEntity<List<CommunityDTO.CommunityPostResponseDTO>> getPublicLogs(
             @RequestParam(required = false) Integer userId) { // 📍 [핀셋 추가] 쿼리 파라미터로 userId를 받습니다.

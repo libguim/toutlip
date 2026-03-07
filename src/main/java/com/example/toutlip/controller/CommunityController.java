@@ -32,12 +32,6 @@ public class CommunityController {
         return ResponseEntity.ok().build();
     }
 
-//    @PatchMapping("/{id}/like")
-//    public ResponseEntity<Void> updateLikeCount(@PathVariable Integer id) {
-////        communityService.incrementLikeCount(id); // 좋아요 증가
-//        return ResponseEntity.ok().build();
-//    }
-
     @PatchMapping("/{id}/like")
     public ResponseEntity<Void> updateLikeCount(
             @PathVariable Integer id,

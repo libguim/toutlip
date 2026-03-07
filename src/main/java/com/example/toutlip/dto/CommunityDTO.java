@@ -1,11 +1,6 @@
 package com.example.toutlip.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
+import lombok.*;
 import java.util.List;
 
 public class CommunityDTO {
@@ -18,6 +13,19 @@ public class CommunityDTO {
     public static class CommunityPostRequestDTO {
         private List<Integer> logIds; // 다중 선택된 로그 ID 리스트
         private String memo;          // 커뮤니티 게시글용 메모
+    }
+
+    @Getter @Setter // 📍 [핀셋 수정] @Data 대신 개별 어노테이션 사용으로 에러 해결
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class LipLogResponseDTO {
+        private Integer logId;
+        private String photoUrl;
+        private String hexCode;
+        private String brandName;
+        private String productName;
+        private String colorName;
     }
 
     @Getter

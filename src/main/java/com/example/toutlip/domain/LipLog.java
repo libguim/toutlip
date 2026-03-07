@@ -19,9 +19,17 @@ public class LipLog extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "color_id", nullable = false)
+//    private ProductColor productColor;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "color_id", nullable = false)
-    private ProductColor productColor;
+    @JoinColumn(name = "base_color_id", nullable = false)
+    private ProductColor baseColor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "point_color_id")
+    private ProductColor pointColor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "community_post_id") // CommunityPost의 @JoinColumn 이름과 맞춰야 합니다.

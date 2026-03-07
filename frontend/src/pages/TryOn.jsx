@@ -35,10 +35,8 @@ const TryOn = () => {
     };
 
     const handleReset = () => {
-        setSelectedProducts([]); // 선택 배열 비우기
-        if (prevLandmarksRef.current) {
-            prevLandmarksRef.current = null; // 렌더링 좌표 초기화
-        }
+        setSelectedProducts([]);
+        console.log("✨ 컬러 선택이 초기화되었습니다. 카메라는 유지됩니다.");
     };
 
 const confirmSave = async () => {
@@ -47,20 +45,26 @@ const confirmSave = async () => {
     
     setIsSaving(true);
     try {
-        const primaryProduct = selectedProducts[0]; // 대표 컬러
-        const response = await axios.post('http://localhost:8080/api/try-on/save', {
+
+        // 📍 [핀셋 수정] 백엔드 DTO 필드명과 일치시킵니다.
+        const response = await axios.post('http://localhost:8080/api/liplogs', {
             userId: Number(localStorage.getItem("userId")),
-            colorId: primaryProduct.id, 
+            
+            // 📍 [핵심] 기존 colorId 대신 baseColorId와 pointColorId 사용
+            baseColorId: selectedProducts[0].id, 
+            pointColorId: selectedProducts[1]?.id || null, 
+            
             photoUrl: capturedImgForConfirm,
             isPublic: false,
-            // [핀셋 수정] 2개일 때와 1개일 때의 메모를 구분합니다.
             memo: selectedProducts.length === 2 
                 ? `${selectedProducts[0].brandName} & ${selectedProducts[1].brandName} 믹스 조합`
-                : `${primaryProduct.brandName || primaryProduct.brand} 시착 샷`
+                : `${selectedProducts[0].brandName || "Tout Lip"} 시착 샷`
         });
         
         setModalMessage("보관함에 예쁘게 저장되었습니다! ✨");
         setCapturedImgForConfirm(null); 
+        handleReset(); // 선택 초기화
+        
     } catch (error) {
         setModalMessage("저장에 실패했습니다. 다시 시도해 주세요.");
     } finally {
@@ -350,10 +354,30 @@ const handleCapture = async () => {
                 </h1>
             </Header>
             <ContentWrapper>
+                {/* <CameraSection>
+                    <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
+                    <StyledCanvas ref={canvasRef} width={640} height={480} />
+                    <LuxuryFrame />
+                    <CaptureButton className="sc-dhKdcy EloMc" onClick={handleCapture}>
+                        <div className="inner-dot" />
+                    </CaptureButton>
+                </CameraSection> */}
+
                 <CameraSection>
                     <video ref={videoRef} style={{ display: 'none' }} muted playsInline />
                     <StyledCanvas ref={canvasRef} width={640} height={480} />
                     <LuxuryFrame />
+
+                    {/* 📍 [핀셋 수정] 좌측 조명 세트 (8개로 최적화) */}
+                    <MakeupLights className="left">
+                        {[...Array(8)].map((_, i) => <div key={`l-${i}`} className="light-bulb" />)}
+                    </MakeupLights>
+
+                    {/* 📍 [핀셋 수정] 우측 조명 세트 (8개로 최적화) */}
+                    <MakeupLights className="right">
+                        {[...Array(8)].map((_, i) => <div key={`r-${i}`} className="light-bulb" />)}
+                    </MakeupLights>
+
                     <CaptureButton className="sc-dhKdcy EloMc" onClick={handleCapture}>
                         <div className="inner-dot" />
                     </CaptureButton>
@@ -447,29 +471,26 @@ const handleCapture = async () => {
                         </TextureSlider>
                     </FilterSection>
 
-                    {/* 2. 제품 상세 정보: 선택된 제품이 있을 때만 표시 */}
-                    {/* {selectedProducts.length > 0 && ( */}
-<ProductDetailInfo>
-    <div className="info-main">
-        {/* 선택된 제품이 없을 때 대체 문구 출력 및 색상 흐리게 처리 */}
-        <h3 style={{ color: selectedProducts.length > 0 ? 'white' : 'rgba(255, 255, 255, 0.3)' }}>
-            {selectedProducts.length === 2 
-                ? `${selectedProducts[0].colorName || selectedProducts[0].name} + ${selectedProducts[1].colorName || selectedProducts[1].name}`
-                : selectedProducts.length === 1
-                ? (selectedProducts[0].colorName || selectedProducts[0].name)
-                : "Select Your Shade"} 
-        </h3>
-    </div>
-    {/* 브랜드명 영역도 공간을 차지하게 하여 덜컥거림 방지 */}
-    <p className="brand-name" style={{ color: selectedProducts.length > 0 ? '#D1BA94' : '#444' }}>
-        {selectedProducts.length === 2
-            ? `${(selectedProducts[0]?.brandName || "Tout Lip").toUpperCase()} & ${(selectedProducts[1]?.brandName || "Tout Lip").toUpperCase()} MIX`
-            : selectedProducts.length === 1
-            ? (selectedProducts[0]?.brandName || currentBrand || "TOUT LIP").toUpperCase()
-            : "TOUT LIP RADIANCE"} {/* 👈 브랜드명 자리에 들어갈 대체 글자 */}
-    </p>
-</ProductDetailInfo>
-                    {/* )} */}
+                    <ProductDetailInfo>
+                        <div className="info-main">
+                            {/* 선택된 제품이 없을 때 대체 문구 출력 및 색상 흐리게 처리 */}
+                            <h3 style={{ color: selectedProducts.length > 0 ? 'white' : 'rgba(255, 255, 255, 0.3)' }}>
+                                {selectedProducts.length === 2
+                                    ? `${selectedProducts[0].colorName || selectedProducts[0].name} + ${selectedProducts[1].colorName || selectedProducts[1].name}`
+                                    : selectedProducts.length === 1
+                                    ? (selectedProducts[0].colorName || selectedProducts[0].name)
+                                    : "Select Your Shade"}
+                            </h3>
+                        </div>
+                        {/* 브랜드명 영역도 공간을 차지하게 하여 덜컥거림 방지 */}
+                        <p className="brand-name" style={{ color: selectedProducts.length > 0 ? '#D1BA94' : '#444' }}>
+                            {selectedProducts.length === 2
+                                ? `${(selectedProducts[0]?.brandName || "Tout Lip").toUpperCase()} & ${(selectedProducts[1]?.brandName || "Tout Lip").toUpperCase()} MIX`
+                                : selectedProducts.length === 1
+                                ? (selectedProducts[0]?.brandName || currentBrand || "TOUT LIP").toUpperCase()
+                                : "TOUT LIP RADIANCE"} {/* 👈 브랜드명 자리에 들어갈 대체 글자 */}
+                        </p>
+                    </ProductDetailInfo>
 
                     {/* 3. 컬러 슬라이더: 현재 불러온 products 리<스트를 렌더링 */}
                     <ColorSlider>
@@ -526,31 +547,19 @@ const handleCapture = async () => {
     );
 };
 
-
-// --- 입술 렌더링 유틸리티 함수 (하단 배치) ---
 const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => {
+    if (!color1 || color1 === 'transparent') return;
     const UPPER_LIP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78];
     const LOWER_LIP = [146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78];
 
     const baseAlpha = 0.5; 
     let displayLandmarks = landmarks;
 
-    // if (prevLandmarksRef.current) {
-    // if (prevLandmarksRef && prevLandmarksRef.current) {
-    //     displayLandmarks = landmarks.map((point, i) => ({
-    //         x: prevLandmarksRef.current[i].x * (1 - alpha) + point.x * alpha,
-    //         y: prevLandmarksRef.current[i].y * (1 - alpha) + point.y * alpha
-    //     }));
-    // }
+    // 1. [유지] 움직임 보정 (Landmark Smoothing) 로직
     if (prevLandmarksRef && prevLandmarksRef.current && prevLandmarksRef.current.length === landmarks.length) {
         displayLandmarks = landmarks.map((point, i) => {
             const prevPoint = prevLandmarksRef.current[i];
-            
-            // [핵심 로직] 현재 좌표와 이전 좌표의 거리(움직임)를 계산
             const distance = Math.sqrt(Math.pow(point.x - prevPoint.x, 2) + Math.pow(point.y - prevPoint.y, 2));
-            
-            // 움직임이 클수록(0.01 이상) alpha를 높여(최대 0.9) 즉각적으로 따라오게 함
-            // 움직임이 작을수록 baseAlpha를 사용하여 떨림을 방지함
             const dynamicAlpha = distance > 0.01 ? Math.min(0.9, baseAlpha + distance * 10) : baseAlpha;
 
             return {
@@ -564,6 +573,7 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
         prevLandmarksRef.current = displayLandmarks;
     }
 
+    // 2. [유지] 입술 경로 그리기 함수
     const drawPath = (indices) => {
         ctx.beginPath();
         indices.forEach((idx, i) => {
@@ -574,28 +584,46 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
         ctx.closePath();
     };
 
-    // 기본 투명도 설정
-    ctx.globalAlpha = texture === 'glossy' ? 0.45 : 0.6;
+    // 3. 📍 [핀셋 핵심] 그라데이션 렌더링 도구 정의
+    // 입술 중심점(중앙 틈새) 계산
+    const centerX = displayLandmarks[13].x * ctx.canvas.width;
+    const centerY = (displayLandmarks[13].y + displayLandmarks[14].y) / 2 * ctx.canvas.height;
+    // 입술 너비에 따른 그라데이션 반경 설정
+    const lipWidth = Math.abs(displayLandmarks[291].x - displayLandmarks[61].x) * ctx.canvas.width;
+    const radius = lipWidth * 0.45; 
 
-    // 1. 첫 번째 베이스 컬러 렌더링
-    ctx.fillStyle = color1;
-    drawPath(UPPER_LIP); ctx.fill();
-    drawPath(LOWER_LIP); ctx.fill();
+    const fillWithGradient = (color, opacity) => {
+        // 중앙에서 바깥으로 퍼지는 원형 그라데이션 생성
+        const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+        
+        gradient.addColorStop(0, color);           // 중심부는 100% 색상
+        gradient.addColorStop(0.6, color);         // 중간 지점까지 색상 유지
+        gradient.addColorStop(1, `${color}00`);    // 📍 외곽 끝부분은 0% 투명 처리 (동동 뜸 방지)
 
-    // 2. 두 번째 컬러가 있을 경우 블렌딩
-    if (color2) {
-        // 입술 영역 내에서만 색이 섞이도록 설정
-        ctx.globalCompositeOperation = 'source-atop'; 
-        ctx.globalAlpha = texture === 'glossy' ? 0.3 : 0.4; // 블렌딩 비율 조절
-        ctx.fillStyle = color2;
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = gradient;
         drawPath(UPPER_LIP); ctx.fill();
         drawPath(LOWER_LIP); ctx.fill();
+    };
+
+    // 4. [수정] 컬러 렌더링 집행
+    // 베이스 컬러 (color1)
+    const baseOpacity = texture === 'glossy' ? 0.5 : 0.7;
+    fillWithGradient(color1, baseOpacity);
+
+    // 포인트 컬러 (color2) 가 있을 경우 블렌딩
+    if (color2) {
+        ctx.globalCompositeOperation = 'source-atop'; // 입술 영역 내부에서만 렌더링
+        const pointOpacity = texture === 'glossy' ? 0.35 : 0.45;
+        fillWithGradient(color2, pointOpacity);
     }
 
-    // 설정 초기화 (반드시 수행)
+    // 5. [유지] 설정 초기화
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1.0; // 설정 초기화
+    ctx.globalAlpha = 1.0;
 };
+
+
 
 // --- Styled Components (Dark & Luxury Gold) ---
 const rotate = keyframes`
@@ -996,5 +1024,54 @@ const ResetButton = styled.button`
     svg { transition: transform 0.4s ease; }
     &:active svg { transform: rotate(-180deg); }
 `;
+
+
+const glowAnimation = keyframes`
+  0%, 100% { opacity: 0.8; box-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #f7e7ce; }
+  50% { opacity: 1; box-shadow: 0 0 15px #fff, 0 0 25px #fff, 0 0 40px #f7e7ce; }
+`;
+
+const crystalGlowAnimation = keyframes`
+  // 📍 [핀셋 수정] 어두운 구간을 없애고(0.9 이상), 더 투명하고 맑은 화이트 광채로 변경
+  0%, 100% { 
+    opacity: 0.92; 
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.2); 
+  }
+  50% { 
+    opacity: 1; 
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.9), 0 0 50px rgba(247, 231, 206, 0.4); 
+  }
+`;
+
+const MakeupLights = styled.div`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 35px; 
+  z-index: 5;
+  padding: 0 10px;
+
+  &.left { left: 5px; }
+  &.right { right: 5px; }
+
+  .light-bulb {
+    width: 18px;
+    height: 18px;
+    // 📍 [핀셋 수정] 전구 자체의 색상을 더 밝은 화이트 베이지로 변경
+    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #fcf8f0 100%);
+    border-radius: 50%;
+    animation: ${crystalGlowAnimation} 4s ease-in-out infinite; // 📍 속도를 늦춰 더 은은하게
+    
+    // 📍 [핀셋 추가] 전구 표면에 아주 얇은 광택 선을 추가해서 더 깨끗해 보이게 함
+    border: 0.5px solid rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(1px); // 📍 주변부와 더 부드럽게 섞이도록
+
+    &:nth-child(2n) { animation-delay: 0.8s; }
+    &:nth-child(3n) { animation-delay: 1.8s; }
+  }
+`;
+
 
 export default TryOn;

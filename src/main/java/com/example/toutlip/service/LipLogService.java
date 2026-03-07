@@ -59,27 +59,48 @@ public class LipLogService {
 
                     if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
                         // 2. 연결된 사진(LipLog) 상세 매핑
-                        dto.setLipLogs(post.getLipLogs().stream()
-                                .map(log -> {
-                                    LipLogDTO.LipLogResponseDTO logDto = modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
+//                        dto.setLipLogs(post.getLipLogs().stream()
+//                                .map(log -> {
+//                                    LipLogDTO.LipLogResponseDTO logDto = modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
+//
+//                                    // 📍 [대원칙 핵심 핀셋] 엑박 방지: DB의 실제 경로를 DTO에 강제로 꽂아넣음
+//                                    // ModelMapper가 간혹 놓치는 photoUrl을 여기서 확실히 고정합니다.
+//                                    logDto.setPhotoUrl(log.getPhotoUrl());
+//
+//                                    // 제품 컬러 및 브랜드 정보 매핑
+//                                    if (log.getProductColor() != null) {
+//                                        logDto.setHexCode(log.getProductColor().getHexCode());
+//                                        logDto.setColorName(log.getProductColor().getColorName());
+//
+//                                        if (log.getProductColor().getProduct() != null) {
+//                                            logDto.setProductName(log.getProductColor().getProduct().getName());
+//                                            logDto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
+//                                        }
+//                                    }
+//                                    return logDto;
+//                                })
+//                                .collect(Collectors.toList()));
 
-                                    // 📍 [대원칙 핵심 핀셋] 엑박 방지: DB의 실제 경로를 DTO에 강제로 꽂아넣음
-                                    // ModelMapper가 간혹 놓치는 photoUrl을 여기서 확실히 고정합니다.
-                                    logDto.setPhotoUrl(log.getPhotoUrl());
+                        dto.setLipLogs(post.getLipLogs().stream().map(log -> {
+                            LipLogDTO.LipLogResponseDTO logDto = modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
+                            logDto.setPhotoUrl(log.getPhotoUrl());
 
-                                    // 제품 컬러 및 브랜드 정보 매핑
-                                    if (log.getProductColor() != null) {
-                                        logDto.setHexCode(log.getProductColor().getHexCode());
-                                        logDto.setColorName(log.getProductColor().getColorName());
+                            // 📍 [핀셋 수정] Base 컬러 정보 매핑
+                            if (log.getBaseColor() != null) {
+                                logDto.setBaseHex(log.getBaseColor().getHexCode());
+                                logDto.setBaseBrand(log.getBaseColor().getProduct().getBrand().getName());
+                                logDto.setBaseColorName(log.getBaseColor().getColorName());
+                            }
 
-                                        if (log.getProductColor().getProduct() != null) {
-                                            logDto.setProductName(log.getProductColor().getProduct().getName());
-                                            logDto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
-                                        }
-                                    }
-                                    return logDto;
-                                })
-                                .collect(Collectors.toList()));
+                            // 📍 [핀셋 수정] Point 컬러 정보 매핑
+                            if (log.getPointColor() != null) {
+                                logDto.setPointHex(log.getPointColor().getHexCode());
+                                logDto.setPointBrand(log.getPointColor().getProduct().getBrand().getName());
+                                logDto.setPointColorName(log.getPointColor().getColorName());
+                            }
+                            return logDto;
+                        }).collect(Collectors.toList()));
+
 
                         // 3. 대표 데이터 설정 (첫 번째 사진 기준)
                         // 📍 여기서도 default-lip.png가 아닌 실제 추출된 photoUrl을 사용합니다.
@@ -98,6 +119,7 @@ public class LipLogService {
                             dto.setUserProfileImg((profileImg == null || profileImg.isEmpty())
                                     ? "default-avatar.png" : profileImg);
                         }
+
                     }
                     return dto;
                 })
@@ -152,14 +174,35 @@ public class LipLogService {
 
     // [Create] 기록 생성 (보관함 저장 전용)
     public LipLogDTO.LipLogResponseDTO createLipLog(LipLogDTO.LipLogRequestDTO dto) {
+
+        System.out.println("🛠️ [DEBUG] userId: " + dto.getUserId());
+        System.out.println("🛠️ [DEBUG] baseColorId: " + dto.getBaseColorId());
+
+        if (dto.getUserId() == null || dto.getBaseColorId() == null) {
+            throw new IllegalArgumentException("필수 ID(userId 또는 baseColorId)가 누락되었습니다.");
+        }
+
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-        ProductColor color = colorRepository.findById(dto.getColorId())
-                .orElseThrow(() -> new IllegalArgumentException("컬러 정보를 찾을 수 없습니다."));
+
+        // 📍 [핀셋 수정] DTO에서 두 가지 ID를 꺼내 각각 조회합니다.
+        ProductColor baseColor = colorRepository.findById(dto.getBaseColorId())
+                .orElseThrow(() -> new IllegalArgumentException("베이스 컬러 정보를 찾을 수 없습니다."));
+
+        // 포인트 컬러는 선택 사항(null 가능)으로 처리합니다.
+        ProductColor pointColor = null;
+        if (dto.getPointColorId() != null) {
+            pointColor = colorRepository.findById(dto.getPointColorId()).orElse(null);
+        }
+
+//        ProductColor color = colorRepository.findById(dto.getColorId())
+//                .orElseThrow(() -> new IllegalArgumentException("컬러 정보를 찾을 수 없습니다."));
 
         LipLog entity = LipLog.builder()
                 .user(user)
-                .productColor(color)
+                .baseColor(baseColor)   // 👈 엔티티의 baseColor 필드
+                .pointColor(pointColor) // 👈 엔티티의 pointColor 필드
+//                .productColor(color)
                 .photoUrl(dto.getPhotoUrl())
                 .memo(dto.getMemo())
                 .isPublic(false) // 보관함 전용이므로 기본 false
@@ -169,16 +212,6 @@ public class LipLogService {
         return convertToResponseDTO(saved);
     }
 
-    // [Read] 내 보관함 최신순 조회 (기존 로직 유지)
-//    @Transactional(readOnly = true)
-//    public List<LipLogDTO.LipLogResponseDTO> readMyLogs(Integer userId) {
-//        // 📍 [핀셋] 복제본(isPublic=true)은 제외하고 오직 '원본'만 가져와 갤러리 중복을 막습니다.
-//        return lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-////                .filter(log -> !log.getIsPublic())
-////                .filter(log -> log.getIsPublic() != null && !log.getIsPublic())
-//                .map(this::convertToResponseDTO)
-//                .collect(Collectors.toList());
-//    }
     @Transactional(readOnly = true)
     public List<LipLogDTO.LipLogResponseDTO> readMyLogs(Integer userId) {
         // 📍 [핀셋] 내 ID로 등록된 모든 로그를 가져옵니다.
@@ -218,129 +251,38 @@ public class LipLogService {
         }
     }
 
-
-//    @Transactional
-//    public void createMultiPhotoPost(List<Integer> logIds, String memo) {
-//        // 1. 보관함에서 뿌리 데이터(Originals)를 가져옴
-//        List<LipLog> originals = lipLogRepository.findAllById(logIds);
-//
-//        // 2. 게시글 생성
-//        CommunityPost post = CommunityPost.builder().memo(memo).build();
-//
-//        // 3. 📍 [핵심] 뿌리(Original)는 건드리지 말고, '새로운 복제본'을 만들어 연결
-//        List<LipLog> clones = originals.stream().map(ori -> {
-//            return LipLog.builder()
-//                    .user(ori.getUser())
-//                    .productColor(ori.getProductColor())
-//                    .photoUrl(ori.getPhotoUrl()) // 이미지 경로만 따옴
-//                    .isPublic(true)               // 피드용임을 표시
-//                    .communityPost(post)          // 📍 여기서만 게시글 ID가 연결됨!
-//                    .build();
-//        }).collect(Collectors.toList());
-//
-//        post.setLipLogs(clones);
-//        communityPostRepository.save(post);
-//    }
-
-    // LipLogService.java 내 deleteLipLog 메서드 수정
     @Transactional
     public void deleteLipLog(Integer logId) {
-        // 🔍 [시작] 삭제 프로세스 진입 확인
-        System.out.println("🚀 [DEBUG] deleteLipLog 시작 - logId: " + logId);
+        // 📍 [핀셋 수정] 사진이 없으면 이미 지워진 것이므로 에러를 던지지 않고 조용히 종료합니다.
+        LipLog target = lipLogRepository.findById(logId).orElse(null);
 
-        LipLog target = lipLogRepository.findById(logId)
-                .orElseThrow(() -> {
-                    System.out.println("❌ [DEBUG] 사진을 찾을 수 없음 - logId: " + logId);
-                    return new EntityNotFoundException("사진을 찾을 수 없습니다.");
-                });
-
-        // 📍 [핀셋 핵심] 부모(게시글) 유무 확인
-        if (target.getCommunityPost() != null) {
-            Integer postId = target.getCommunityPost().getId();
-            CommunityPost postToDelete = target.getCommunityPost(); // 📍 삭제할 게시글 객체 미리 확보
-            System.out.println("🔗 [DEBUG] 연관된 게시글 발견! - postId: " + postId);
-
-            try {
-                // 1. 관계 단절 확인
-                target.setCommunityPost(null);
-                System.out.println("✂️ [DEBUG] 1. 사진과 게시글 관계 해제 완료");
-
-                // communityService.delete(postId) 대신 직접 repository를 사용해 확실히 지웁니다.
-                communityPostRepository.delete(postToDelete);
-                System.out.println("📡 [DEBUG] 2. 게시글 엔티티 삭제 명령 수행 완료");
-
-                // 3. 동기화 확인
-                communityPostRepository.flush();
-                System.out.println("💾 [DEBUG] 3. 게시글 삭제 flush 완료");
-
-            } catch (Exception e) {
-                System.err.println("🔥 [DEBUG] 게시글 삭제 중 에러 발생: " + e.getMessage());
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("🍃 [DEBUG] 연관된 게시글이 없는 단독 사진입니다.");
+        if (target == null) {
+            System.out.println("🍃 [DEBUG] 이미 삭제된 사진입니다. (logId: " + logId + ")");
+            return;
         }
 
-        // 📍 최종 사진 삭제 확인
-        System.out.println("🗑️ [DEBUG] 최종 단계: 원본 사진(LipLog) 삭제 수행 중...");
+        if (target.getCommunityPost() != null) {
+            Integer postId = target.getCommunityPost().getId();
+            CommunityPost postToDelete = target.getCommunityPost();
+
+            try {
+                target.setCommunityPost(null);
+                lipLogRepository.saveAndFlush(target);
+
+                // 게시글이 존재할 때만 삭제 시도
+                if (communityPostRepository.existsById(postId)) {
+                    communityPostRepository.delete(postToDelete);
+                    communityPostRepository.flush();
+                }
+            } catch (Exception e) {
+                // 삭제 중 발생하는 충돌은 일괄 삭제 특성상 발생할 수 있으므로 로그만 남김
+                System.out.println("ℹ️ [DEBUG] 게시글 처리 중 경미한 충돌 (무시): " + e.getMessage());
+            }
+        }
+
         lipLogRepository.delete(target);
         lipLogRepository.flush();
-        System.out.println("🏁 [DEBUG] deleteLipLog 프로세스 종료 성공!");
     }
-
-    // LipLogService.java
-//    @Transactional
-//    public void deleteLipLog(Integer logId) {
-//        // 1. 삭제할 사진(원본 또는 복제본) 조회
-//        LipLog target = lipLogRepository.findById(logId)
-//                .orElseThrow(() -> new EntityNotFoundException("사진을 찾을 수 없습니다."));
-//
-//        // 2. 📍 [핵심] 이 사진이 게시글(CommunityPost)에 속해 있는지 확인
-//        if (target.getCommunityPost() != null) {
-//            CommunityPost post = target.getCommunityPost();
-//
-//            // 3. 📍 1:1 관계이므로 이 사진이 삭제되면 게시글은 '빈 껍데기'가 됩니다.
-//            // 따라서 게시글도 함께 삭제 명령을 내립니다.
-//            communityPostRepository.delete(post);
-//        }
-//
-//        // 4. 사진 데이터 삭제
-//        lipLogRepository.delete(target);
-//
-//        // 5. 📍 DB에 즉시 반영 (유령 데이터 방지)
-//        communityPostRepository.flush();
-//        lipLogRepository.flush();
-//    }
-
-//    @Transactional
-//    public void deleteLipLog(Integer logId) {
-//        // 1. 삭제할 '특정' 사진 객체를 정확히 조회
-//        LipLog target = lipLogRepository.findById(logId)
-//                .orElseThrow(() -> new EntityNotFoundException("사진을 찾을 수 없습니다. ID: " + logId));
-//
-//        // 2. 이 사진이 게시글(CommunityPost)에 속해 있는지 확인
-//        if (target.getCommunityPost() != null) {
-//            CommunityPost post = target.getCommunityPost();
-//
-//            // 📍 [핀셋 핵심] 70번 게시글의 사진 리스트에서 '이 사진(target)'만 제거
-//            // photoUrl이 같더라도 logId가 다른 71번 게시글의 사진은 리스트에서 빠지지 않음
-//            post.getLipLogs().remove(target);
-//
-//            // 3. 사진을 제거한 후, 해당 게시글에 남은 사진이 0장이라면 게시글 자체를 삭제
-//            if (post.getLipLogs().isEmpty()) {
-//                communityPostRepository.delete(post);
-//            }
-//        }
-//
-//        // 4. 요청받은 그 사진 데이터(target)만 DB에서 삭제
-//        lipLogRepository.delete(target);
-//
-//        // 📍 즉시 반영하여 프론트엔드와 데이터 동기화
-//        communityPostRepository.flush();
-//        lipLogRepository.flush();
-//    }
-
-    // --- Helper Methods ---
 
     private LipLogDTO.LipLogResponseDTO convertToResponseDTO(LipLog log) {
         // 기존의 꼼꼼한 매핑 로직 유지
@@ -351,11 +293,22 @@ public class LipLogService {
         dto.setIsPublic(log.getIsPublic());
         dto.setCreatedAt(log.getCreatedAt());
 
-        if (log.getProductColor() != null) {
-            dto.setColorName(log.getProductColor().getColorName());
-            if (log.getProductColor().getProduct() != null) {
-                dto.setProductName(log.getProductColor().getProduct().getName());
-                dto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
+        if (log.getBaseColor() != null) {
+            dto.setBaseHex(log.getBaseColor().getHexCode());
+            dto.setBaseColorName(log.getBaseColor().getColorName());
+            if (log.getBaseColor().getProduct() != null) {
+                dto.setBaseProductName(log.getBaseColor().getProduct().getName());
+                dto.setBaseBrand(log.getBaseColor().getProduct().getBrand().getName());
+            }
+        }
+
+        // 📍 [핀셋 수정] 2. Point 컬러 정보 매핑
+        if (log.getPointColor() != null) {
+            dto.setPointHex(log.getPointColor().getHexCode());
+            dto.setPointColorName(log.getPointColor().getColorName());
+            if (log.getPointColor().getProduct() != null) {
+                dto.setPointProductName(log.getPointColor().getProduct().getName());
+                dto.setPointBrand(log.getPointColor().getProduct().getBrand().getName());
             }
         }
 
@@ -369,32 +322,6 @@ public class LipLogService {
     public void deleteCommunityPost(Integer postId) { // Long 대신 Integer 사용
         communityPostRepository.deleteById(postId);
     }
-
-//    @Transactional(readOnly = true)
-//    public CommunityDTO.CommunityPostResponseDTO readPostDetail(Integer postId) {
-//        // 1. DB에서 해당 ID의 게시글 조회
-//        CommunityPost post = communityPostRepository.findById(postId)
-//                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("해당 게시글을 찾을 수 없습니다. ID: " + postId));
-//
-//        // 2. 엔티티를 DTO로 변환
-//        CommunityDTO.CommunityPostResponseDTO dto = new CommunityDTO.CommunityPostResponseDTO();
-//        dto.setPostId(post.getId());
-//        dto.setMemo(post.getMemo());
-//        dto.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : "");
-//
-//        // 3. 연결된 이미지(LipLog) 목록 변환 및 대표 이미지 설정
-//        if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
-//            dto.setLipLogs(post.getLipLogs().stream()
-//                    .map(log -> modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class))
-//                    .collect(Collectors.toList()));
-//
-//            // 첫 번째 사진을 대표 이미지와 닉네임 기준으로 설정
-//            dto.setPhotoUrl(post.getLipLogs().get(0).getPhotoUrl());
-//            dto.setNickname(post.getLipLogs().get(0).getUser().getNickname());
-//        }
-//
-//        return dto;
-//    }
 
     @Transactional(readOnly = true)
     public CommunityDTO.CommunityPostResponseDTO readPostDetail(Integer postId) {

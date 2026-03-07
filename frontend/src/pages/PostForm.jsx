@@ -88,28 +88,7 @@ const handleSelectPhoto = (log) => {
         setCurrentSlide(selectedLogIds.length); 
     }
 };
-// const handleSelectPhoto = (log) => {
-//         if (selectedLogIds.includes(log.logId)) {
-//             // 이미 선택된 사진을 다시 누르면 삭제 (교체 과정)
-//             const indexToRemove = selectedLogIds.indexOf(log.logId);
-//             setSelectedLogIds(selectedLogIds.filter(id => id !== log.logId));
-//             setPreviewUrls(previewUrls.filter((_, i) => i !== indexToRemove));
-            
-//             // 삭제 후 슬라이드 위치 조정
-//             if (currentSlide >= selectedLogIds.length - 1 && currentSlide > 0) {
-//                 setCurrentSlide(currentSlide - 1);
-//             }
-//         } else {
-//             // 새 사진 추가 (교체 시 이전 사진 삭제 후 클릭하면 교체됨)
-//             if (selectedLogIds.length >= 5) return alert("최대 5장까지만 선택할 수 있어요! ✨");
-            
-//             setSelectedLogIds([...selectedLogIds, log.logId]);
-//             setPreviewUrls([...previewUrls, log.photoUrl]);
-//             setCurrentSlide(selectedLogIds.length); // 새 사진으로 즉시 슬라이드 이동
-//         }
-//     };
 
-// PostForm.jsx 내 handleSave 함수 핀셋 수정
 const handleSave = async () => {
     if (selectedLogIds.length === 0) return alert("사진을 선택해주세요!");
     
@@ -212,16 +191,7 @@ return (
                 <div className="grid-header">보관함 사진 (최대 5장)</div>
                 <div className="grid-container">
                     {myGalleryLogs.map(log => (
-                        // <GridItem 
-                        //     key={log.logId} 
-                        //     onClick={() => handleSelectPhoto(log)}
-                        //     $isSelected={selectedLogIds.includes(log.logId)}
-                        // >
-                        //     <img src={log.photoUrl} alt="gallery" />
-                        //     {selectedLogIds.includes(log.logId) && (
-                        //         <div className="badge">{selectedLogIds.indexOf(log.logId) + 1}</div>
-                        //     )}
-                        // </GridItem>
+
                         <GridItem 
                             key={log.logId} 
                             onClick={() => handleSelectPhoto(log)}
