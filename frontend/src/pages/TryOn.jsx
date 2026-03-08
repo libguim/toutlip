@@ -17,7 +17,7 @@ const TryOn = () => {
     const canvasRef = useRef(null);
     const faceMeshRef = useRef(null);
     const cameraRef = useRef(null);
-    const selectedProductRef = useRef(null); // [핀셋 추가] 실시간 참조용
+    const selectedProductRef = useRef(null); // 실시간 참조용
     const prevLandmarksRef = useRef(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -26,7 +26,7 @@ const TryOn = () => {
     const [selectedProducts, setSelectedProducts] = useState([]); // 단일 객체에서 배열로 변경
 
     const handleSaveClick = () => {
-    setIsConfirmOpen(true); // 바로 저장하지 않고 팝업을 띄움
+        setIsConfirmOpen(true); // 바로 저장하지 않고 팝업을 띄움
     };
 
     const closeConfirmModal = () => {
@@ -39,38 +39,34 @@ const TryOn = () => {
         console.log("✨ 컬러 선택이 초기화되었습니다. 카메라는 유지됩니다.");
     };
 
-const confirmSave = async () => {
-    // [핀셋 수정] selectedProduct 대신 selectedProducts 배열을 체크합니다.
-    if (isSaving || !capturedImgForConfirm || selectedProducts.length === 0) return;
-    
-    setIsSaving(true);
-    try {
+    const confirmSave = async () => {
+        if (isSaving || !capturedImgForConfirm || selectedProducts.length === 0) return;
 
-        // 📍 [핀셋 수정] 백엔드 DTO 필드명과 일치시킵니다.
-        const response = await axios.post('http://localhost:8080/api/liplogs', {
-            userId: Number(localStorage.getItem("userId")),
-            
-            // 📍 [핵심] 기존 colorId 대신 baseColorId와 pointColorId 사용
-            baseColorId: selectedProducts[0].id, 
-            pointColorId: selectedProducts[1]?.id || null, 
-            
-            photoUrl: capturedImgForConfirm,
-            isPublic: false,
-            memo: selectedProducts.length === 2 
-                ? `${selectedProducts[0].brandName} & ${selectedProducts[1].brandName} 믹스 조합`
-                : `${selectedProducts[0].brandName || "Tout Lip"} 시착 샷`
-        });
-        
-        setModalMessage("보관함에 예쁘게 저장되었습니다! ✨");
-        setCapturedImgForConfirm(null); 
-        handleReset(); // 선택 초기화
-        
-    } catch (error) {
-        setModalMessage("저장에 실패했습니다. 다시 시도해 주세요.");
-    } finally {
-        setIsSaving(false);
-    }
-};
+        setIsSaving(true);
+        try {
+
+            const response = await axios.post('http://localhost:8080/api/liplogs', {
+                userId: Number(localStorage.getItem("userId")),
+                baseColorId: selectedProducts[0].id,
+                pointColorId: selectedProducts[1]?.id || null,
+
+                photoUrl: capturedImgForConfirm,
+                isPublic: false,
+                memo: selectedProducts.length === 2
+                    ? `${selectedProducts[0].brandName} & ${selectedProducts[1].brandName} 믹스 조합`
+                    : `${selectedProducts[0].brandName || "Tout Lip"} 시착 샷`
+            });
+
+            setModalMessage("보관함에 예쁘게 저장되었습니다! ✨");
+            setCapturedImgForConfirm(null);
+            handleReset(); // 선택 초기화
+
+        } catch (error) {
+            setModalMessage("저장에 실패했습니다. 다시 시도해 주세요.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleProductSelect = (product) => {
         setSelectedProducts(prev => {
@@ -86,11 +82,10 @@ const confirmSave = async () => {
         selectedProductRef.current = selectedProducts;
     }, [selectedProducts]);
 
-    // handleSave 함수 핀셋 수정
     const handleSave = async () => {
-        if (isSaving) return; // [핀셋] 중복 저장 방지
+        if (isSaving) return; // 중복 저장 방지
 
-        // 📍 [핵심 해결] 외부 변수(capturedImg)를 기다리지 않고, 
+        // 📍 외부 변수(capturedImg)를 기다리지 않고, 
         // 실행 시점에 캔버스에서 직접 데이터를 만듭니다.
         if (!canvasRef.current) {
             alert("카메라 화면을 불러올 수 없습니다.");
@@ -115,7 +110,7 @@ const confirmSave = async () => {
             console.error("저장 실패:", error);
             alert("저장에 실패했습니다. 다시 시도해 주세요.");
         } finally {
-            setIsSaving(false); 
+            setIsSaving(false);
         }
     };
 
@@ -125,7 +120,7 @@ const confirmSave = async () => {
             try {
                 setLoading(true);
                 const brandRes = await axios.get('http://localhost:8080/api/products/brands');
-                
+
                 console.group("🚀 [Step 1] 초기 로드 디버깅"); // 로그 그룹화
                 console.log("1. 수신된 전체 브랜드 목록:", brandRes.data);
 
@@ -144,7 +139,7 @@ const confirmSave = async () => {
                         const enrichedData = colorRes.data.map(product => ({
                             ...product,
                             // 📍 [핀셋] 서버 데이터에 brandName이 없으면 현재 선택된 브랜드명을 주입
-                            brandName: product.brandName || firstBrand 
+                            brandName: product.brandName || firstBrand
                         }));
                         setProducts(colorRes.data);
                         setSelectedProducts([colorRes.data[0]]); // [수정] 배열 형태로 저장
@@ -164,122 +159,120 @@ const confirmSave = async () => {
     }, []);
 
     useEffect(() => {
-    if (loading) return;
+        if (loading) return;
 
-    let isCancelled = false;
+        let isCancelled = false;
 
-    // [핀셋] 1. 결과 처리 루프: 여기서 최신 selectedProductRef.current를 사용합니다.
-    const onResults = (results) => {
-        if (isCancelled || !canvasRef.current) return;
+        // [핀셋] 1. 결과 처리 루프: 여기서 최신 selectedProductRef.current를 사용합니다.
+        const onResults = (results) => {
+            if (isCancelled || !canvasRef.current) return;
+
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.save();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+            // const currentProduct = selectedProductRef.current;
+            const currentProducts = selectedProductRef.current || [];
+
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
+                // [디버깅] 컬러 변경 여부 콘솔 확인
+                // console.log("💄 Drawing Lips with:", currentProduct?.hexCode); 
+
+                drawLips(
+                    ctx,
+                    results.multiFaceLandmarks[0],
+                    currentProducts[0]?.hexCode || 'transparent', // 첫 번째 선택 색상
+                    currentProducts[1]?.hexCode || null,          // 두 번째 선택 색상
+                    currentProducts[0]?.texture || 'matte',
+                    prevLandmarksRef
+                );
+            }
+            ctx.restore();
+        };
+
+        // [핀셋] 2. 엔진 및 카메라 초기화
+        const initCamera = async () => {
+            try {
+                // 엔진 인스턴스가 없을 때만 생성
+                if (!faceMeshRef.current) {
+                    const faceMesh = new FaceMesh({
+                        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`
+                    });
+
+                    faceMesh.setOptions({
+                        maxNumFaces: 1,
+                        refineLandmarks: true,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5,
+                    });
+
+                    faceMesh.onResults(onResults);
+                    faceMeshRef.current = faceMesh;
+                }
+
+                // [핵심] 카메라가 설정되어 있지 않다면 즉시 시작
+                if (videoRef.current && !cameraRef.current) {
+                    cameraRef.current = new cam.Camera(videoRef.current, {
+                        onFrame: async () => {
+                            const currentVideo = videoRef.current;
+
+                            // [핀셋 교정] 비디오가 존재하고, 화면 데이터가 준비(readyState 4)되었을 때만 전송
+                            if (currentVideo && currentVideo.readyState >= 2 && faceMeshRef.current && !isCancelled) {
+                                try {
+                                    await faceMeshRef.current.send({ image: currentVideo });
+                                } catch (error) {
+                                    // 초기 로딩 시 발생하는 미세한 타이밍 에러 무시
+                                }
+                            }
+                        },
+                        width: 640,
+                        height: 480,
+                    });
+                    console.log("📸 카메라 시작 중...");
+                    await cameraRef.current.start();
+                }
+            } catch (error) {
+                console.error("카메라 초기화 에러:", error);
+            }
+        };
+
+        initCamera();
+
+        return () => {
+            isCancelled = true;
+            // 페이지를 벗어날 때만 확실히 멈춤
+            if (cameraRef.current) {
+                cameraRef.current.stop();
+                cameraRef.current = null;
+            }
+        };
+    }, [loading]); // selectedProduct를 넣지 않아도 ref를 통해 최신값을 읽어옵니다.
+
+    const handleCapture = async () => {
+
+        if (selectedProducts.length === 0) {
+            setModalMessage("컬러를 먼저 선택해 주세요! ✨");
+            setIsConfirmOpen(true);
+            return;
+        }
 
         const canvas = canvasRef.current;
+        if (!canvas) {
+            alert("카메라 화면을 불러올 수 없습니다.");
+            return;
+        }
+
         const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        ctx.save();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
-        // const currentProduct = selectedProductRef.current;
-        const currentProducts = selectedProductRef.current || [];
-        
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks[0]) {
-            // [디버깅] 컬러 변경 여부 콘솔 확인
-            // console.log("💄 Drawing Lips with:", currentProduct?.hexCode); 
-            
-            drawLips(
-                ctx,
-                results.multiFaceLandmarks[0],
-                currentProducts[0]?.hexCode || 'transparent', // 첫 번째 선택 색상
-                currentProducts[1]?.hexCode || null,          // 두 번째 선택 색상
-                currentProducts[0]?.texture || 'matte',
-                prevLandmarksRef
-            );
+        if (ctx) {
+            // 화면과 동일한 뽀샤시 효과를 캔버스 데이터에 강제로 입힙니다.
+            ctx.filter = "brightness(1.1) contrast(0.95) saturate(1.1) blur(0.3px)";
         }
-        ctx.restore();
-    };
 
-    // [핀셋] 2. 엔진 및 카메라 초기화
-    const initCamera = async () => {
-        try {
-            // 엔진 인스턴스가 없을 때만 생성
-            if (!faceMeshRef.current) {
-                const faceMesh = new FaceMesh({
-                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`
-                });
-
-                faceMesh.setOptions({
-                    maxNumFaces: 1,
-                    refineLandmarks: true,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5,
-                });
-
-                faceMesh.onResults(onResults);
-                faceMeshRef.current = faceMesh;
-            }
-
-            // [핵심] 카메라가 설정되어 있지 않다면 즉시 시작
-            if (videoRef.current && !cameraRef.current) {
-                cameraRef.current = new cam.Camera(videoRef.current, {
-                    onFrame: async () => {
-                        const currentVideo = videoRef.current;
-                        
-                        // [핀셋 교정] 비디오가 존재하고, 화면 데이터가 준비(readyState 4)되었을 때만 전송
-                        if (currentVideo && currentVideo.readyState >= 2 && faceMeshRef.current && !isCancelled) {
-                            try {
-                                await faceMeshRef.current.send({ image: currentVideo });
-                            } catch (error) {
-                                // 초기 로딩 시 발생하는 미세한 타이밍 에러 무시
-                            }
-                        }
-                    },
-                    width: 640,
-                    height: 480,
-                });
-                console.log("📸 카메라 시작 중...");
-                await cameraRef.current.start();
-            }
-        } catch (error) {
-            console.error("카메라 초기화 에러:", error);
-        }
-    };
-
-    initCamera();
-
-    return () => {
-        isCancelled = true;
-        // 페이지를 벗어날 때만 확실히 멈춤
-        if (cameraRef.current) {
-            cameraRef.current.stop();
-            cameraRef.current = null;
-        }
-    };
-}, [loading]); // selectedProduct를 넣지 않아도 ref를 통해 최신값을 읽어옵니다.
-
-
-    // handleCapture 함수 수정
-const handleCapture = async () => {
-
-    if (selectedProducts.length === 0) {
-        setModalMessage("컬러를 먼저 선택해 주세요! ✨"); 
-        setIsConfirmOpen(true);
-        return;
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) {
-        alert("카메라 화면을 불러올 수 없습니다.");
-        return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-        // 화면과 동일한 뽀샤시 효과를 캔버스 데이터에 강제로 입힙니다.
-        ctx.filter = "brightness(1.1) contrast(0.95) saturate(1.1) blur(0.3px)";
-    }
-
-    const imageData = canvas.toDataURL("image/png");
+        const imageData = canvas.toDataURL("image/png");
         setCapturedImgForConfirm(imageData);
         setModalMessage(""); // 이전 메시지 초기화
         setIsConfirmOpen(true);
@@ -289,14 +282,14 @@ const handleCapture = async () => {
         try {
             console.log("🚀 [Sync] 외부 API 호출 시작...");
             const externalRes = await axios.get('https://makeup-api.herokuapp.com/api/v1/products.json?product_type=lipstick');
-            
+
             // 데이터 샘플 확인 (중요!)
             console.log("📥 [Sync] 첫 번째 데이터 샘플:", externalRes.data[0]);
             console.log("📥 [Sync] 첫 번째 데이터의 컬러칩:", externalRes.data[0].product_colors);
 
             console.log("📡 [Sync] 내 서버로 전송 중...");
             const response = await axios.post('http://localhost:8080/api/products/sync', externalRes.data);
-            
+
             console.log("✅ [Sync] 서버 응답:", response.data);
             alert("동기화 프로세스가 완료되었습니다! 로그를 확인하세요.");
         } catch (err) {
@@ -304,14 +297,12 @@ const handleCapture = async () => {
         }
     };
 
-    // [Debug] 동기화 버튼 클릭 시 로그 확인용 핀셋 코드
     const syncDataToMyServer = async () => {
         try {
             console.log("🚀 [Debug] 외부 데이터 동기화 시작...");
             const externalRes = await axios.get('https://makeup-api.herokuapp.com/api/v1/products.json?product_type=lipstick');
             console.log("📥 [Debug] 외부 API 로드 완료 (개수):", externalRes.data.length);
 
-            // 내 서버의 /api/products/sync 로 전송
             const response = await axios.post('http://localhost:8080/api/products/sync', externalRes.data);
             console.log("✅ [Debug] 서버 응답:", response.data);
             alert("DB 동기화 성공! ✨");
@@ -323,15 +314,14 @@ const handleCapture = async () => {
     const handleBrandChange = async (e) => {
         const brandName = e.target.value;
         setCurrentBrand(brandName);
-        setActiveTexture('ALL'); 
+        setActiveTexture('ALL');
 
         try {
-            // [교정] 컨트롤러의 @GetMapping("/colors/brand/{brandName}") 구조와 일치시킴
             const url = `http://localhost:8080/api/products/colors/brand/${brandName}`;
             const res = await axios.get(url);
             const enrichedData = res.data.map(product => ({
                 ...product,
-                brandName: brandName 
+                brandName: brandName
             }));
 
             setProducts(enrichedData);
@@ -426,19 +416,19 @@ const handleCapture = async () => {
                     {/* 1. 필터 섹션: 브랜드 선택 및 텍스처 버튼 */}
                     <FilterSection>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <select 
-                                onChange={handleBrandChange} 
+                            <select
+                                onChange={handleBrandChange}
                                 // 선택된 제품의 브랜드명을 대문자로 표시하여 일관성 유지
                                 // value={selectedProduct?.brandName?.toUpperCase() || ''}
                                 value={currentBrand}
-                                style={{ 
-                                    minWidth: '130px', 
+                                style={{
+                                    minWidth: '130px',
                                     padding: '8px 12px',
-                                    backgroundColor: '#1e1e1e', 
-                                    color: '#f7e7ce', 
+                                    backgroundColor: '#1e1e1e',
+                                    color: '#f7e7ce',
                                     borderRadius: '20px',
                                     border: '1px solid #333',
-                                    appearance: 'auto' 
+                                    appearance: 'auto'
                                 }}
                             >
                                 {brands.length === 0 ? (
@@ -484,8 +474,8 @@ const handleCapture = async () => {
                                 {selectedProducts.length === 2
                                     ? `${selectedProducts[0].colorName || selectedProducts[0].name} + ${selectedProducts[1].colorName || selectedProducts[1].name}`
                                     : selectedProducts.length === 1
-                                    ? (selectedProducts[0].colorName || selectedProducts[0].name)
-                                    : "Select Your Shade"}
+                                        ? (selectedProducts[0].colorName || selectedProducts[0].name)
+                                        : "Select Your Shade"}
                             </h3>
                         </div>
                         {/* 브랜드명 영역도 공간을 차지하게 하여 덜컥거림 방지 */}
@@ -493,8 +483,8 @@ const handleCapture = async () => {
                             {selectedProducts.length === 2
                                 ? `${(selectedProducts[0]?.brandName || "Tout Lip").toUpperCase()} & ${(selectedProducts[1]?.brandName || "Tout Lip").toUpperCase()} MIX`
                                 : selectedProducts.length === 1
-                                ? (selectedProducts[0]?.brandName || currentBrand || "TOUT LIP").toUpperCase()
-                                : "TOUT LIP RADIANCE"} {/* 👈 브랜드명 자리에 들어갈 대체 글자 */}
+                                    ? (selectedProducts[0]?.brandName || currentBrand || "TOUT LIP").toUpperCase()
+                                    : "TOUT LIP RADIANCE"} {/* 👈 브랜드명 자리에 들어갈 대체 글자 */}
                         </p>
                     </ProductDetailInfo>
 
@@ -527,7 +517,7 @@ const handleCapture = async () => {
                                     // const isSelected = selectedProducts.some(p => p.id === product.id);
                                     const selectedIndex = selectedProducts.findIndex(p => p.id === product.id);
                                     const isSelected = selectedIndex !== -1;
-                                    
+
                                     return (
                                         <ColorCard key={`${product.id || 'color'}-${idx}`} onClick={() => handleProductSelect(product)}>
                                             <ChipWrapper $color={colorValue} $active={isSelected} style={{ position: 'relative' }}>
@@ -558,10 +548,10 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
     const UPPER_LIP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78];
     const LOWER_LIP = [146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78];
 
-    const baseAlpha = 0.5; 
+    const baseAlpha = 0.5;
     let displayLandmarks = landmarks;
 
-    // 1. [유지] 움직임 보정 (Landmark Smoothing) 로직
+    // 움직임 보정 (Landmark Smoothing) 로직
     if (prevLandmarksRef && prevLandmarksRef.current && prevLandmarksRef.current.length === landmarks.length) {
         displayLandmarks = landmarks.map((point, i) => {
             const prevPoint = prevLandmarksRef.current[i];
@@ -579,7 +569,7 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
         prevLandmarksRef.current = displayLandmarks;
     }
 
-    // 2. [유지] 입술 경로 그리기 함수
+    // 입술 경로 그리기 함수
     const drawPath = (indices) => {
         ctx.beginPath();
         indices.forEach((idx, i) => {
@@ -590,18 +580,17 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
         ctx.closePath();
     };
 
-    // 3. 📍 [핀셋 핵심] 그라데이션 렌더링 도구 정의
     // 입술 중심점(중앙 틈새) 계산
     const centerX = displayLandmarks[13].x * ctx.canvas.width;
     const centerY = (displayLandmarks[13].y + displayLandmarks[14].y) / 2 * ctx.canvas.height;
     // 입술 너비에 따른 그라데이션 반경 설정
     const lipWidth = Math.abs(displayLandmarks[291].x - displayLandmarks[61].x) * ctx.canvas.width;
-    const radius = lipWidth * 0.45; 
+    const radius = lipWidth * 0.45;
 
     const fillWithGradient = (color, opacity) => {
         // 중앙에서 바깥으로 퍼지는 원형 그라데이션 생성
         const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-        
+
         gradient.addColorStop(0, color);           // 중심부는 100% 색상
         gradient.addColorStop(0.6, color);         // 중간 지점까지 색상 유지
         gradient.addColorStop(1, `${color}00`);    // 📍 외곽 끝부분은 0% 투명 처리 (동동 뜸 방지)
@@ -612,7 +601,6 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
         drawPath(LOWER_LIP); ctx.fill();
     };
 
-    // 4. [수정] 컬러 렌더링 집행
     // 베이스 컬러 (color1)
     const baseOpacity = texture === 'glossy' ? 0.5 : 0.7;
     fillWithGradient(color1, baseOpacity);
@@ -624,7 +612,7 @@ const drawLips = (ctx, landmarks, color1, color2, texture, prevLandmarksRef) => 
         fillWithGradient(color2, pointOpacity);
     }
 
-    // 5. [유지] 설정 초기화
+    // 설정 초기화
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1.0;
 };

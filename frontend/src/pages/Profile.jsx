@@ -50,7 +50,6 @@ const closeAlertModal = () => setAlertModal(prev => ({ ...prev, isOpen: false })
     const handleDeleteSelected = async () => {
     if (selectedLogIds.length === 0) return;
 
-    // 📍 [핀셋 수정] 기본 confirm 대신 커스텀 모달 호출
     setAlertModal({
         isOpen: true,
         type: 'confirm',
@@ -89,7 +88,6 @@ const closeAlertModal = () => setAlertModal(prev => ({ ...prev, isOpen: false })
     });
 };
 
-    // Profile.jsx 상단 상태 정의 아래에 추가
     const fetchMyLogs = async () => {
         if (!userId) return;
         setLoading(true);
