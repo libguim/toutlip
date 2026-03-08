@@ -260,7 +260,7 @@ const confirmSave = async () => {
 
     // handleCapture 함수 수정
 const handleCapture = async () => {
-    // [핀셋 수정] 배열(selectedProducts)이 비어있는지 확인합니다.
+
     if (selectedProducts.length === 0) {
         setModalMessage("컬러를 먼저 선택해 주세요! ✨"); 
         setIsConfirmOpen(true);
@@ -273,11 +273,17 @@ const handleCapture = async () => {
         return;
     }
 
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+        // 화면과 동일한 뽀샤시 효과를 캔버스 데이터에 강제로 입힙니다.
+        ctx.filter = "brightness(1.1) contrast(0.95) saturate(1.1) blur(0.3px)";
+    }
+
     const imageData = canvas.toDataURL("image/png");
-    setCapturedImgForConfirm(imageData);
-    setModalMessage(""); // 이전 메시지 초기화
-    setIsConfirmOpen(true);
-};
+        setCapturedImgForConfirm(imageData);
+        setModalMessage(""); // 이전 메시지 초기화
+        setIsConfirmOpen(true);
+    };
 
     const handleSyncData = async () => {
         try {
@@ -645,16 +651,18 @@ const GoldSpinner = styled.div`
 
 const PageContainer = styled.div`
     background-color: ${props => props.theme.colors.darkBg};
-    min-height: 100vh; /* height 대신 min-height 사용 */
+    // min-height: 100vh;
+    height: 100vh; 
     width: 100%;
     display: flex;
     flex-direction: column;
     color: ${props => props.theme.colors.softWhite};
-    //overflow: hidden; /* 내부 요소가 삐져나오지 않게 방지 */
+    overflow: hidden; /* 내부 요소가 삐져나오지 않게 방지 */
 `;
 
 const CameraSection = styled.div`
-    flex: 1.5;
+    // flex: 1.5;
+    flex: 1;
     position: relative;
     background: #000;
     overflow: hidden;
@@ -664,15 +672,33 @@ const CameraSection = styled.div`
     border-bottom: 2px solid ${props => props.theme.colors.borderGold};
 `;
 
+// const StyledCanvas = styled.canvas`
+//     // position: absolute;
+//     // top: 50%;
+//     // left: 50%;
+//     // transform: translate(-50%, -50%); 
+//     width: 100%;
+//     height: 100%;
+//     object-fit: cover; /* 영상이 왜곡되지 않고 영역을 가득 채우도록 설정 */
+//     z-index: 1;
+// `;
+
 const StyledCanvas = styled.canvas`
-    position: absolute; /* 요청하신 속성 추가 */
+    position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%); /* 정확한 중앙 배치 */
+    transform: translate(-50%, -50%);
     width: 100%;
     height: 100%;
-    object-fit: cover; /* 영상이 왜곡되지 않고 영역을 가득 채우도록 설정 */
+    object-fit: cover;
     z-index: 1;
+
+    /* 📍 [핀셋 추가] 뽀샤시 필터 효과 */
+    filter: 
+        brightness(1.1)   /* 살짝 밝게 */
+        contrast(0.95)     /* 대비를 낮춰 부드럽게 */
+        saturate(1.1)      /* 생동감 있는 입술 색상을 위해 채도 상승 */
+        blur(0.3px);       /* 아주 미세한 블러로 피부 요철 보정 */
 `;
 
 const LuxuryFrame = styled.div`
@@ -684,14 +710,12 @@ const SelectionPanel = styled.div`
     background: ${props => props.theme.colors.panelBg};
     border-radius: 30px 30px 0 0;
     padding: 24px 20px;
-    flex: .5;
+    flex: .85;
     display: flex;
     flex-direction: column;
     z-index: 50;
     box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
-    /* 아래 여백을 확실히 주어 네비바와 겹침 방지 */
-    //padding-bottom: 100px;
-    overflow-y: auto; /* 내용이 많으면 내부 스크롤 가능하게 */
+    overflow: hidden;
 `;
 
 const PanelHeader = styled.div`
@@ -702,10 +726,14 @@ const PanelHeader = styled.div`
 
 const ColorSlider = styled.div`
     display: flex;
-    gap: 20px;
+    gap: 15px;
     overflow-x: auto; /* 가로 스크롤 활성화 */
-    padding: 10px 0;
+    padding: 12px 0;
     width: 100%;
+    flex-shrink: 0; /* 📍 중요: 공간이 부족해도 절대 줄어들거나 사라지지 않음 */
+    margin-bottom: 10px;
+    // margin-top: 0;      /* 📍 패널 내 남은 공간 최하단으로 밀착 */
+    // min-height: 70px;      /* 📍 최소 높이를 보장하여 사라짐 방지 */
 
     /* 스크롤바 숨기기 */
     -ms-overflow-style: none;
@@ -718,12 +746,12 @@ const ProductBrand = styled.span` font-size: 0.65rem; color: #666; margin-top: 2
 
 const CaptureButton = styled.button`
     position: absolute;
-    bottom: 40px; /* 위치는 레이아웃에 맞게 조절하세요 */
+    bottom: 20px; /* 위치는 레이아웃에 맞게 조절하세요 */
     left: 50%;
     transform: translateX(-50%);
 
-    width: 72px;
-    height: 72px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     border: none;
     cursor: pointer;
@@ -769,7 +797,10 @@ const ProductName = styled.span`
 `;
 
 const FilterSection = styled.div`
-    display: flex; gap: 12px; margin-bottom: 24px;
+    display: flex; 
+    flex-direction: column; /* 📍 모바일 가독성을 위해 세로 배치 고려 */
+    gap: 10px; 
+    margin-bottom: 12px;    /* 📍 24px -> 12px 축소 */
     
     .brand-select {
         background: #1e1e1e; color: #f7e7ce; border: 1px solid #333;
@@ -787,8 +818,11 @@ const FilterSection = styled.div`
 `;
 
 const ProductDetailInfo = styled.div`
-    margin-top: 10px; /* 필터 섹션과의 거리 */
-    margin-bottom: 30px; /* 컬러칩 슬라이더와의 거리 확보 */
+    margin: 16px 0;
+    // flex: 1; 
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* 상단 정렬 유지 */
 
     .info-main {
         display: flex;
@@ -796,7 +830,8 @@ const ProductDetailInfo = styled.div`
         align-items: flex-end;
         h3 {
             color: white;
-            font-size: 1.4rem; /* 폰트 크기 살짝 키움 */
+            font-size: 1.3rem; /* 폰트 크기 살짝 키움 */
+            line-height: 1.5;
             margin: 0;
             font-weight: 500;
         }
@@ -811,8 +846,8 @@ const ProductDetailInfo = styled.div`
     }
     .brand-name {
         color: #D1BA94; /* 샴페인 골드 색상 적용 */
-        font-size: 0.85rem;
-        margin-top: 8px;
+        font-size: 0.8rem;
+        margin-top: 4px;
         letter-spacing: 1px;
         font-weight: 500;
     }
@@ -1049,7 +1084,7 @@ const MakeupLights = styled.div`
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 35px; 
+  gap: 20px; 
   z-index: 5;
   padding: 0 10px;
 
@@ -1057,8 +1092,8 @@ const MakeupLights = styled.div`
   &.right { right: 5px; }
 
   .light-bulb {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     // 📍 [핀셋 수정] 전구 자체의 색상을 더 밝은 화이트 베이지로 변경
     background: radial-gradient(circle at 30% 30%, #ffffff 0%, #fcf8f0 100%);
     border-radius: 50%;

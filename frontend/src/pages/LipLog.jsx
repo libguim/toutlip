@@ -442,6 +442,7 @@ return (
                                 src={
                                     post.userProfileImg && post.userProfileImg.includes('.') 
                                         ? `http://localhost:8080/uploads/${post.userProfileImg}` 
+                                        // ? `${process.env.REACT_APP_API_URL}/uploads/${post.userProfileImg}`
                                         : '/default-avatar.png'
                                 } 
                                 alt="profile"
@@ -576,13 +577,6 @@ return (
     </FeedList>
 </ScrollArea>
             
-            {/* 1. 우측 하단 플로팅 버튼 (프레임 안쪽 안착) */}
-            <FixedActionArea>
-                <FloatingWriteButton onClick={() => setIsWriteModalOpen(true)}>
-                    +
-                </FloatingWriteButton>
-            </FixedActionArea>
-
 
         {isWriteModalOpen && (
             <ModalOverlay onClick={() => setIsWriteModalOpen(false)}>
@@ -854,28 +848,6 @@ const FeedContainer = styled.div`
     overflow: hidden;   /* 📍 부모 자체의 스크롤은 막아야 버튼이 고정됨 */
     display: flex;
     flex-direction: column;
-`;
-
-const FixedActionArea = styled.div`
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%; /* 📍 프레임 전체 면적 확보 */
-    pointer-events: none;      /* 뒤쪽 스크롤 방해 금지 */
-    z-index: 1000;
-`;
-
-const FloatingWriteButton = styled.button`
-    pointer-events: auto; 
-    position: absolute;
-    bottom: 30px; /* 📍 디바이스 하단 탭 바 바로 위 고정 */
-    right: 20px;
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    background: #D1BA94;
-    font-size: 32px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    cursor: pointer;
-    z-index: 1001;
 `;
 
 const DeleteBtn = styled.button`
