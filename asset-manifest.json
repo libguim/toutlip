@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/libguim/toutlip.git/static/css/main.e6c13ad2.css",
+    "main.js": "/libguim/toutlip.git/static/js/main.138189f2.js",
+    "static/js/453.20359781.chunk.js": "/libguim/toutlip.git/static/js/453.20359781.chunk.js",
+    "index.html": "/libguim/toutlip.git/index.html",
+    "main.e6c13ad2.css.map": "/libguim/toutlip.git/static/css/main.e6c13ad2.css.map",
+    "main.138189f2.js.map": "/libguim/toutlip.git/static/js/main.138189f2.js.map",
+    "453.20359781.chunk.js.map": "/libguim/toutlip.git/static/js/453.20359781.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.138189f2.js"
+  ]
+}
