@@ -19,10 +19,6 @@ public class LipLog extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "color_id", nullable = false)
-//    private ProductColor productColor;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "base_color_id", nullable = false)
     private ProductColor baseColor;
@@ -32,8 +28,8 @@ public class LipLog extends BaseTimeEntity {
     private ProductColor pointColor;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "community_post_id") // CommunityPost의 @JoinColumn 이름과 맞춰야 합니다.
-    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE) // ⭐ 핀셋 추가: 원본 삭제 시 게시글도 삭제
+    @JoinColumn(name = "community_post_id")
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     @com.fasterxml.jackson.annotation.JsonIgnore // ⭐ 순환 참조 방지 (500 에러 해결의 핵심)
     private CommunityPost communityPost;
 

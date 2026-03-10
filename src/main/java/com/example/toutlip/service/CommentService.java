@@ -24,7 +24,7 @@ public class CommentService {
     private final UserRepository userRepository;
     private final CommunityPostRepository communityPostRepository;
 
-    // 📍 [핀셋] 댓글 작성 로직
+    // 댓글 작성 로직
     public void createComment(CommentDTO.CommentRequestDTO dto) {
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new EntityNotFoundException("유저를 찾을 수 없습니다."));
@@ -40,7 +40,7 @@ public class CommentService {
         commentRepository.save(comment);
     }
 
-    // 📍 [핀셋] 특정 게시글의 댓글 목록 조회 (작성순)
+    // 특정 게시글의 댓글 목록 조회 (작성순)
     @Transactional(readOnly = true)
     public List<CommentDTO.CommentResponseDTO> getCommentsByPost(Integer postId) {
         return commentRepository.findByCommunityPostIdOrderByIdAsc(postId).stream()
@@ -56,7 +56,7 @@ public class CommentService {
                 .collect(Collectors.toList());
     }
 
-    // 📍 [핀셋] 댓글 수정
+    // 댓글 수정
     public void updateComment(Integer commentId, String newContent, Integer userId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("댓글을 찾을 수 없습니다."));
@@ -69,7 +69,7 @@ public class CommentService {
         comment.setContent(newContent);
     }
 
-    // 📍 [핀셋] 댓글 삭제
+    // 댓글 삭제
     public void deleteComment(Integer commentId, Integer userId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("댓글을 찾을 수 없습니다."));

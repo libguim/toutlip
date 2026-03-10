@@ -19,9 +19,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 📍 서버의 실제 업로드 폴더 경로를 /uploads/** URL로 매핑
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:src/main/resources/static/uploads/");
-        // 실제 저장 경로에 맞춰 수정하세요 (예: "file:C:/uploads/")
     }
 }

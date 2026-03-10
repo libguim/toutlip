@@ -68,7 +68,7 @@ public class CommunityService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("유저 없음"));
 
-        // 📍 [핀셋 핵심] 이미 해당 유저가 좋아요를 눌렀는지 확인
+        // 이미 해당 유저가 좋아요를 눌렀는지 확인
 //        Optional<PostLike> existingLike = postLikeRepository.findByUserAndCommunityPost(user, post);
         Optional<PostLike> existingLike = postLikeRepository.findByUserIdAndCommunityPostId(userId, postId);
 
@@ -78,13 +78,6 @@ public class CommunityService {
             int currentCount = (post.getLikeCount() == null) ? 0 : post.getLikeCount();
             post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
         } else {
-//            // 없다면 새로 생성 (좋아요 추가)
-//            PostLike newLike = new PostLike();
-//            newLike.setUser(user);
-//            newLike.setCommunityPost(post);
-//            postLikeRepository.save(newLike);
-//            post.setLikeCount(post.getLikeCount() + 1);
-            // 📍 [핀셋 수정] 'new PostLike()' 대신 @Builder를 사용하여 protected 에러 해결
             PostLike newLike = PostLike.builder()
                     .user(user)
                     .communityPost(post)
@@ -103,7 +96,6 @@ public class CommunityService {
         CommunityPost post = communityPostRepository.findById(id).orElse(null);
         if (post == null) return;
 
-        // 📍 [핀셋] 게시글이 삭제될 때 연결된 모든 사진을 '보관함 전용(false)'으로 안전하게 돌려보냅니다.
         if (post.getLipLogs() != null) {
             post.getLipLogs().forEach(log -> {
                 log.setCommunityPost(null);
@@ -117,7 +109,6 @@ public class CommunityService {
         }
 
         communityPostRepository.delete(post);
-        // flush를 통해 삭제 명령을 즉시 실행하여 유령 데이터 생성을 막습니다.
         communityPostRepository.flush();
     }
 
@@ -147,14 +138,14 @@ public class CommunityService {
                 logDto.setLogId(log.getId());
                 logDto.setPhotoUrl(log.getPhotoUrl());
 
-                // 📍 [핀셋 수정] Base 컬러 정보 추출
+                // Base 컬러 정보 추출
                 if (log.getBaseColor() != null) {
                     logDto.setBaseHex(log.getBaseColor().getHexCode());
                     logDto.setBaseBrand(log.getBaseColor().getProduct().getBrand().getName());
                     logDto.setBaseColorName(log.getBaseColor().getColorName());
                 }
 
-                // 📍 [핀셋 수정] Point 컬러 정보 추출
+                // Point 컬러 정보 추출
                 if (log.getPointColor() != null) {
                     logDto.setPointHex(log.getPointColor().getHexCode());
                     logDto.setPointBrand(log.getPointColor().getProduct().getBrand().getName());
@@ -167,11 +158,6 @@ public class CommunityService {
         return dto;
     }
 
-    /**
-     * [최종 빌드업] 게시글 수정: 모아나의 대원칙 반영
-     * 1. 수정 시 제외된 사진은 원본 상태(isPublic=false)로 복구하여 보관함 보존
-     * 2. 물리적 삭제가 아닌 '관계 재설정'으로 이미지 액박(경로 유실) 방지
-     */
     @Transactional
     public void update(Integer postId, CommunityDTO.CommunityPostRequestDTO dto) {
         CommunityPost post = communityPostRepository.findById(postId)
@@ -180,10 +166,10 @@ public class CommunityService {
         // 1. 메모 수정
         post.setMemo(dto.getMemo());
 
-        // 2. [대원칙 핵심] 기존 연결된 사진들의 '상태 복구' 및 '연결 해제'
+        // 2. 기존 연결된 사진들의 '상태 복구' 및 '연결 해제'
         if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
             post.getLipLogs().forEach(log -> {
-                // 📍 가지만 쳐내고 뿌리(원본)는 보관함 전용(false)으로 되돌립니다.
+                // 가지만 쳐내고 뿌리(원본)는 보관함 전용(false)으로 되돌립니다.
                 log.setIsPublic(false);
                 log.setCommunityPost(null);
             });
@@ -194,7 +180,7 @@ public class CommunityService {
         // 연결 해제 정보를 DB에 즉시 반영 (유령 데이터 방지)
         lipLogRepository.flush();
 
-        // 3. [대원칙 핵심] 새롭게 선택된 사진들을 게시글에 '연결'
+        // 3. 새롭게 선택된 사진들을 게시글에 '연결'
         List<LipLog> newSelectedLogs = lipLogRepository.findAllById(dto.getLogIds());
         for (LipLog log : newSelectedLogs) {
             log.setIsPublic(true);           // 공개 상태로 전환
@@ -205,8 +191,5 @@ public class CommunityService {
         // 최종 상태 저장
         communityPostRepository.save(post);
     }
-
-
-
 
 }

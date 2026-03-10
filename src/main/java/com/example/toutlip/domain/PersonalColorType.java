@@ -17,5 +17,4 @@ public enum PersonalColorType { // enum은 엔티티가 될 수 없음
     // 2. 화면에 표시할 한글 설명
     private final String description;
 
-    // 3. 필요하다면 특정 톤에 어울리는 대표 헥사코드를 담아둘 수도 있습니다.
 }

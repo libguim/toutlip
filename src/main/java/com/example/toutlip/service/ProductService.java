@@ -52,14 +52,9 @@ public class ProductService {
             "maybelline", "l'oreal", "revlon"
     );
 
-    /**
-     * 브랜드 이름별 전체 컬러칩 필터링 조회 (최적화 버전)
-     */
-    /**
-     * 브랜드 이름별 전체 컬러칩 필터링 조회 (최적화 버전: 최대 20개)
-     */
+
     public List<ProductDTO.ProductColorResponseDTO> findAllColorsByBrandName(String brandName) {
-        // [교정] 대소문자 구분 없이(IgnoreCase) 상위 20개를 가져오도록 메서드명을 맞춥니다.
+        // 대소문자 구분 없이(IgnoreCase) 상위 20개를 가져오도록 메서드명을 맞춥니다.
         return colorRepository.findTop20ByProduct_Brand_NameIgnoreCase(brandName).stream()
                 .map(color -> modelMapper.map(color, ProductDTO.ProductColorResponseDTO.class))
                 .collect(Collectors.toList());

@@ -44,11 +44,11 @@ public class LipLogService {
                     dto.setProductName(post.getProductName());
                     dto.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : "");
 
-                    // 📍 [핀셋 추가] DB에 저장된 실제 좋아요 수 반영
+                    // DB에 저장된 실제 좋아요 수 반영
                     long actualLikeCount = postLikeRepository.countByCommunityPostId(post.getId());
                     dto.setLikeCount((int) actualLikeCount);
 
-                    // 📍 [핀셋 추가] 현재 로그인한 유저가 이 게시글에 좋아요를 눌렀는지 판별
+                    // 현재 로그인한 유저가 이 게시글에 좋아요를 눌렀는지 판별
                     if (userId != null) {
                         // PostLikeRepository를 사용하여 존재 여부 확인
                         boolean isLiked = postLikeRepository.findByUserIdAndCommunityPostId(userId, post.getId()).isPresent();
@@ -58,41 +58,19 @@ public class LipLogService {
                     }
 
                     if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
-                        // 2. 연결된 사진(LipLog) 상세 매핑
-//                        dto.setLipLogs(post.getLipLogs().stream()
-//                                .map(log -> {
-//                                    LipLogDTO.LipLogResponseDTO logDto = modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
-//
-//                                    // 📍 [대원칙 핵심 핀셋] 엑박 방지: DB의 실제 경로를 DTO에 강제로 꽂아넣음
-//                                    // ModelMapper가 간혹 놓치는 photoUrl을 여기서 확실히 고정합니다.
-//                                    logDto.setPhotoUrl(log.getPhotoUrl());
-//
-//                                    // 제품 컬러 및 브랜드 정보 매핑
-//                                    if (log.getProductColor() != null) {
-//                                        logDto.setHexCode(log.getProductColor().getHexCode());
-//                                        logDto.setColorName(log.getProductColor().getColorName());
-//
-//                                        if (log.getProductColor().getProduct() != null) {
-//                                            logDto.setProductName(log.getProductColor().getProduct().getName());
-//                                            logDto.setBrandName(log.getProductColor().getProduct().getBrand().getName());
-//                                        }
-//                                    }
-//                                    return logDto;
-//                                })
-//                                .collect(Collectors.toList()));
 
                         dto.setLipLogs(post.getLipLogs().stream().map(log -> {
                             LipLogDTO.LipLogResponseDTO logDto = modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
                             logDto.setPhotoUrl(log.getPhotoUrl());
 
-                            // 📍 [핀셋 수정] Base 컬러 정보 매핑
+                            // Base 컬러 정보 매핑
                             if (log.getBaseColor() != null) {
                                 logDto.setBaseHex(log.getBaseColor().getHexCode());
                                 logDto.setBaseBrand(log.getBaseColor().getProduct().getBrand().getName());
                                 logDto.setBaseColorName(log.getBaseColor().getColorName());
                             }
 
-                            // 📍 [핀셋 수정] Point 컬러 정보 매핑
+                            // Point 컬러 정보 매핑
                             if (log.getPointColor() != null) {
                                 logDto.setPointHex(log.getPointColor().getHexCode());
                                 logDto.setPointBrand(log.getPointColor().getProduct().getBrand().getName());
@@ -103,12 +81,11 @@ public class LipLogService {
 
 
                         // 3. 대표 데이터 설정 (첫 번째 사진 기준)
-                        // 📍 여기서도 default-lip.png가 아닌 실제 추출된 photoUrl을 사용합니다.
+                        // 여기서도 default-lip.png가 아닌 실제 추출된 photoUrl을 사용합니다.
                         if (!dto.getLipLogs().isEmpty()) {
                             dto.setPhotoUrl(dto.getLipLogs().get(0).getPhotoUrl());
                             dto.setBrandName(dto.getLipLogs().get(0).getBrandName());
                             dto.setProductName(dto.getLipLogs().get(0).getProductName());
-                            // 📍 [핀셋 추가] 프론트엔드가 찾는 'images'라는 통로에도 데이터를 넣어줍니다.
                             dto.setImages(dto.getLipLogs());
                         }
 
@@ -135,7 +112,6 @@ public class LipLogService {
 
         post.setMemo(dto.getMemo());
 
-        // 📍 [대원칙 1: 연결 해제 및 원본 복구]
         // 기존에 연결된 사진들을 지우지 않고, '연결 고리'만 끊어 보관함으로 돌려보냅니다.
         if (post.getLipLogs() != null) {
             post.getLipLogs().forEach(log -> {
@@ -148,7 +124,6 @@ public class LipLogService {
         // 관계 해제를 DB에 즉시 알려 유령 데이터 생성을 방지합니다.
         lipLogRepository.flush();
 
-        // 📍 [대원칙 2: 새로운 사진 연결]
         // 사진을 새로 생성(Builder)하지 않고, 보관함에 있는 '그 사진'을 그대로 가져와 연결합니다.
         List<LipLog> selectedLogs = lipLogRepository.findAllById(dto.getLogIds());
         for (LipLog log : selectedLogs) {
@@ -185,7 +160,7 @@ public class LipLogService {
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        // 📍 [핀셋 수정] DTO에서 두 가지 ID를 꺼내 각각 조회합니다.
+        // DTO에서 두 가지 ID를 꺼내 각각 조회합니다.
         ProductColor baseColor = colorRepository.findById(dto.getBaseColorId())
                 .orElseThrow(() -> new IllegalArgumentException("베이스 컬러 정보를 찾을 수 없습니다."));
 
@@ -195,8 +170,6 @@ public class LipLogService {
             pointColor = colorRepository.findById(dto.getPointColorId()).orElse(null);
         }
 
-//        ProductColor color = colorRepository.findById(dto.getColorId())
-//                .orElseThrow(() -> new IllegalArgumentException("컬러 정보를 찾을 수 없습니다."));
 
         LipLog entity = LipLog.builder()
                 .user(user)
@@ -214,13 +187,12 @@ public class LipLogService {
 
     @Transactional(readOnly = true)
     public List<LipLogDTO.LipLogResponseDTO> readMyLogs(Integer userId) {
-        // 📍 [핀셋] 내 ID로 등록된 모든 로그를 가져옵니다.
+        // 내 ID로 등록된 모든 로그를 가져옵니다.
         return lipLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(log -> {
                     // 1. 기본 DTO 변환 (기존 convertToResponseDTO 활용)
                     LipLogDTO.LipLogResponseDTO dto = convertToResponseDTO(log);
 
-                    // 2. 📍 [핀셋 핵심 수정]
                     // 이 사진이 게시글(CommunityPost)에 연결되어 있다면,
                     // 게시글 엔티티의 컬럼값이 아닌 PostLike 테이블의 행 개수를 직접 셉니다.
                     if (log.getCommunityPost() != null) {
@@ -253,7 +225,7 @@ public class LipLogService {
 
     @Transactional
     public void deleteLipLog(Integer logId) {
-        // 📍 [핀셋 수정] 사진이 없으면 이미 지워진 것이므로 에러를 던지지 않고 조용히 종료합니다.
+        // 사진이 없으면 이미 지워진 것이므로 에러를 던지지 않고 조용히 종료합니다.
         LipLog target = lipLogRepository.findById(logId).orElse(null);
 
         if (target == null) {
@@ -332,7 +304,7 @@ public class LipLogService {
         dto.setPostId(post.getId());
         dto.setMemo(post.getMemo());
 
-        // 📍 [핀셋] post.getLipLogs()가 비어있지 않을 때만 안전하게 실행
+        // post.getLipLogs()가 비어있지 않을 때만 안전하게 실행
         if (post.getLipLogs() != null && !post.getLipLogs().isEmpty()) {
             List<LipLogDTO.LipLogResponseDTO> logDtos = post.getLipLogs().stream().map(log -> {
                 LipLogDTO.LipLogResponseDTO logDto = modelMapper.map(log, LipLogDTO.LipLogResponseDTO.class);
@@ -349,7 +321,7 @@ public class LipLogService {
                 return logDto;
             }).collect(Collectors.toList());
 
-            // 📍 [핀셋 확정] 변수가 선언된 if문 블록 안에서 안전하게 세팅하여 에러 방지
+            // 변수가 선언된 if문 블록 안에서 안전하게 세팅하여 에러 방지
             dto.setLipLogs(logDtos);
             dto.setImages(logDtos);
 
@@ -358,7 +330,6 @@ public class LipLogService {
         }
         return dto;
     }
-
 
 
 }
