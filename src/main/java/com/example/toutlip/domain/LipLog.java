@@ -34,7 +34,8 @@ public class LipLog extends BaseTimeEntity {
     private CommunityPost communityPost;
 
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+//    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String photoUrl;
 
     private String memo;
