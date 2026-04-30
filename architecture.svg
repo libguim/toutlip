@@ -1,4 +1,4 @@
-<svg width="100%" viewBox="0 70 680 330" role="img" style="" xmlns="http://www.w3.org/2000/svg">
+<svg width="100%" viewBox="0 100 680 300" role="img" style="" xmlns="http://www.w3.org/2000/svg">
   <title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Toutlip system architecture</title>
   <desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Browser connects to Spring Boot via REST API. Spring Boot connects to MariaDB and Supabase. Makeup API syncs to backend. Frontend deployed on GitHub Pages.</desc>
   <defs>
